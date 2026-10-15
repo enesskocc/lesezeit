@@ -19,3 +19,5 @@ _Last updated: 2026-10-15_
 - M2: shards "by first two letters" may exceed 300 KB for common prefixes (ge-, be-, ver-) → plan: split those shards by 3 letters and keep a small shard index. Needs Enes' OK.
 - M2: which free frequency list (Leipzig Corpora, CC BY vs. OpenSubtitles-based lists).
 - M3: verify each RSS feed actually yields full text; drop teaser-only feeds.
+- Before M5: switch service worker to `registerType: 'prompt'` (no surprise reload mid-session) and add one E2E test with the service worker enabled (offline launch).
+- The read-only-token branch of the write probe (403) is only tested with a mock; the 409 "can write" branch was verified against the real API.

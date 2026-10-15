@@ -22,6 +22,7 @@ Private German reading + vocabulary PWA for Enes only. Never published to any st
 
 ## Decisions (with date)
 - 2026-10-15: E2E = **Playwright WebKit**, not Detox (Detox only drives native RN apps). Enes: this project only — the global Detox rule stays for Expo apps.
-- 2026-10-15: Shared origin `enesskocc.github.io` (other Pages sites) accepted; token is scoped to `lesezeit-data` only.
+- 2026-10-15: Shared origin `enesskocc.github.io` (other Pages sites) accepted; token is scoped to `lesezeit-data` only. **Never create the `enesskocc.github.io` user-site repo with a root `/sw.js`** — a root-scoped service worker would control `/lesezeit/` too.
+- 2026-10-15: Write access is checked with a wrong-sha PUT (409 = can write, nothing written; 403 = read-only), because `permissions.push` shows the user's role, not the fine-grained token's.
 - 2026-10-15: Hash routing (`#/kurulum`) because Pages has no SPA fallback. Gemini key optional until milestone 8.
 - iOS: a home-screen PWA has storage separate from Safari → keys must be entered inside the installed app.
