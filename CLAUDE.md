@@ -1,0 +1,27 @@
+# Lesezeit — project notes for Claude
+
+Private German reading + vocabulary PWA for Enes only. Never published to any store.
+
+- **Read first:** `PROGRESS.md` (where we are), then `SPEC.md` (source of truth). `docs/prototype.html` is UX reference only — its words and translations are samples, never real data.
+- **Talk to Enes in Turkish.** App UI is Turkish, reading content German, code comments English.
+- **Work milestone by milestone** (SPEC.md → Milestones). Before each: list files + unsure decisions. After each: stop, give exact iPhone test steps, wait for OK.
+- **Ask before any step where Enes must log in, create a token/repo, add a secret or click on GitHub** — give exact step-by-step instructions.
+- **Zero cost:** only GitHub Free (Pages, Actions, repos), Gemini free tier, Claude via `claude -p` + OAuth token. Never add anything that needs billing; never fall back to a paid API key.
+- **Never commit tokens, keys or full news texts to this public repo.** Texts live only in the private `enesskocc/lesezeit-data` (local clone: `..\lesezeit-data`, never nested inside this folder). Test fixtures must be synthetic.
+
+## Repos
+- `enesskocc/lesezeit` (public) = this folder. App, pipeline scripts, dictionary shards. Pages: https://enesskocc.github.io/lesezeit/
+- `enesskocc/lesezeit-data` (private). `texts/`, `inbox/`, `backup/`, `sources.json`, daily workflow.
+
+## Commands
+- `npm run dev` / `npm run build` / `npm run typecheck`
+- `npm run test:e2e` — Playwright WebKit (iPhone 15 profile) against `vite preview`; build first. GitHub API is mocked.
+- `npm run lock:check` before every push (Windows npm drops Linux-only optional deps → CI `npm ci` fails); fix with `npm run lock:refresh`.
+- `npm run icons` — regenerate PWA icons from `public/icon.svg`.
+- Graphify: `python -m graphify update .` after big changes; query with `python -m graphify query "..."`.
+
+## Decisions (with date)
+- 2026-10-15: E2E = **Playwright WebKit**, not Detox (Detox only drives native RN apps). Enes: this project only — the global Detox rule stays for Expo apps.
+- 2026-10-15: Shared origin `enesskocc.github.io` (other Pages sites) accepted; token is scoped to `lesezeit-data` only.
+- 2026-10-15: Hash routing (`#/kurulum`) because Pages has no SPA fallback. Gemini key optional until milestone 8.
+- iOS: a home-screen PWA has storage separate from Safari → keys must be entered inside the installed app.

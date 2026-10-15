@@ -1,0 +1,67 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/literata';
+@import '@fontsource-variable/figtree';
+
+/* Design tokens from docs/prototype.html. Dark mode follows the system unless data-theme is set. */
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --ink: #18212c; --muted: #5a6676; --line: #dbe1e8;
+  --accent: #2a4a94; --accent-soft: #e3e9f7; --learn: #fbe6a2; --good: #2f8a55; --bad: #c43b44;
+  --der: #2c66cc; --die: #cc3d47; --das: #2b8f53;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f141a; --surface: #18202a; --ink: #e6ebf1; --muted: #98a5b4; --line: #2a3542;
+    --accent: #93b1ff; --accent-soft: #223152; --learn: #5b4a14; --good: #5cc98a; --bad: #ff7d85;
+    --der: #74a3ff; --die: #ff7f87; --das: #62d494;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #0f141a; --surface: #18202a; --ink: #e6ebf1; --muted: #98a5b4; --line: #2a3542;
+  --accent: #93b1ff; --accent-soft: #223152; --learn: #5b4a14; --good: #5cc98a; --bad: #ff7d85;
+  --der: #74a3ff; --die: #ff7f87; --das: #62d494;
+  color-scheme: dark;
+}
+
+/* Expose the tokens as Tailwind utilities: bg-surface, text-muted, border-line, … */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-learn: var(--learn);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-der: var(--der);
+  --color-die: var(--die);
+  --color-das: var(--das);
+  --font-read: 'Literata Variable', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html, body { background: var(--bg); color: var(--ink); }
+body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Shared component classes, mirroring the prototype. */
+@layer components {
+  .label { @apply text-[11.5px] font-semibold uppercase tracking-[0.08em] text-muted; }
+  .card { @apply rounded-xl border border-line bg-surface p-3.5; }
+  .btn { @apply rounded-[10px] border border-line bg-surface px-3 py-2.5 text-sm font-semibold disabled:opacity-50; }
+  .btn-primary { @apply rounded-[10px] border border-accent bg-accent px-3 py-2.5 text-sm font-semibold text-surface disabled:opacity-50; }
+  .field { @apply w-full rounded-[10px] border border-line bg-bg px-3 py-2.5 text-base text-ink; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

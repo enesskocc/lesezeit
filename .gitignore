@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dev-dist/
+test-results/
+playwright-report/
+graphify-out/
+.env*
+*.local
+
+# Never commit private reading data or keys to this public repo.
+/lesezeit-data/
+/texts/
+/inbox/
+/backup/
+*.token
+
+# Local Claude Code settings
+.claude/settings.local.json
+*.stackdump
