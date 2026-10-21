@@ -39,6 +39,20 @@ export default defineConfig({
         // German + Turkish only need the latin and latin-ext font subsets offline.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-wght-*.woff2'],
         navigateFallback: `${base}index.html`,
+        // Dictionary: too big to precache (~60 MB). Shards a user has looked up are kept, so
+        // those words also work offline. Shard URLs carry ?v=<build>, so CacheFirst is safe.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname === `${base}dict/manifest.json`,
+            handler: 'NetworkFirst',
+            options: { cacheName: 'dict-manifest', networkTimeoutSeconds: 4 },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith(`${base}dict/`),
+            handler: 'CacheFirst',
+            options: { cacheName: 'dict-shards', expiration: { maxEntries: 400, purgeOnQuotaError: true } },
+          },
+        ],
       },
     }),
   ],

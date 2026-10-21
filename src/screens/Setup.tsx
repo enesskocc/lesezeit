@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { DATA_OWNER, DATA_REPO } from '../config';
 import { clearKeys, saveKeys, type Settings } from '../lib/db';
 import { checkDataRepoAccess } from '../lib/github';
@@ -114,6 +114,10 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
           Anahtarları bu cihazdan sil
         </button>
       )}
+
+      <Link to="/lisanslar" className="mt-6 block text-sm text-muted underline">
+        Lisanslar ve kaynaklar
+      </Link>
     </>
   );
 }
