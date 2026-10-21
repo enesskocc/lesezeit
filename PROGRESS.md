@@ -18,7 +18,8 @@ _Last updated: 2026-10-21_
   - Windows-reserved shard names get a `~` (`aux~.json`) via `shardFile()`; `public/dict/LICENSE.md` ships the CC BY-SA notice.
   - Code review (agency-agents Code Reviewer) done; 12 findings fixed (double articles, homographs, regional "sein", NFC, reserved names, stale manifest, …).
 
-- **Milestone 3 — Pipeline without AI (code done, waiting for first real Actions run + Enes' iPhone test)**
+- **Milestone 3 — Pipeline without AI (first Actions run 2026-10-21: 8/8 texts from 7 sources committed; waiting for Enes' iPhone test)**
+  - From GitHub's (US) runners the ZDFheute feed answers 404 although it works from Germany → watch the next scheduled runs; disable with a note if it stays 404.
   - Decisions (Enes, 2026-10-21): cron 03:30 UTC (05:30 CEST / 04:30 CET); skip texts > 1,500 words; phone shows a text list + plain preview until the M5 reader.
   - Public repo: `pipeline/` (run.ts, feeds.ts, extract.ts, text.ts, heuristics.ts, store.ts, dict-fs.ts, pipeline.test.ts), schemas `shared/texts.ts`, app `src/screens/Home.tsx` (list, level filter) + `TextPreview.tsx`, `src/lib/texts.ts`.
   - Private repo: `sources.json`, `pipeline.json` (maxTextsPerRun 8, minWords 250, maxWords 1500, maxFetchesPerRun 60), `.github/workflows/daily.yml` (checks out the public repo into `app/`, `npm ci --omit=dev`, runs the pipeline, commits `texts/` + `state/` with rebase + retry; no secrets needed).
