@@ -177,6 +177,10 @@ test('Windows-reserved shard names and NFC keys', () => {
   assert.equal(shardFile('aux'), 'aux~');
   assert.equal(shardFile('com1'), 'com1~');
   assert.equal(shardFile('auxi'), 'auxi');
+  assert.equal(normalizeKey('mitbringen​'), 'mitbringen', 'zero-width space from a keyboard suggestion');
+  assert.equal(normalizeKey('brıngen'), 'bringen', 'Turkish dotless ı');
+  assert.equal(normalizeKey('İst'), 'ist', 'Turkish dotted İ');
+  assert.equal(normalizeKey('Ver­kehr'), 'verkehr', 'soft hyphen');
   assert.equal(normalizeKey('Häuser'), 'häuser', 'decomposed umlaut');
 });
 

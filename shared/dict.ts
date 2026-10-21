@@ -72,9 +72,20 @@ export function parseLemmaId(id: string): { w: string; p: PosCode; h?: number } 
   return h ? { w, p: p as PosCode, h: Number(h) } : { w, p: p as PosCode };
 }
 
-/** Lookup key: NFC (pasted text may use decomposed umlauts), trimmed, lowercased, single spaces. */
+/**
+ * Lookup key: NFC (pasted text may use decomposed umlauts), no invisible characters
+ * (zero-width spaces/joiners from keyboard suggestions, soft hyphens from web text),
+ * Turkish dotless ı / dotted İ → i (a Turkish keyboard; German has neither), trimmed,
+ * lowercased, single spaces.
+ */
 export function normalizeKey(s: string): string {
-  return s.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE');
+  return s
+    .normalize('NFC')
+    .replace(/[​-‍⁠﻿­]/g, '')
+    .replace(/[ıİ]/g, 'i')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleLowerCase('de-DE');
 }
 
 /** ASCII form of a key, used only for shard prefixes (ä→ae, ß→ss; anything else → "_"). */

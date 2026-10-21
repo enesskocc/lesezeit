@@ -55,3 +55,10 @@ test('words in the Windows-reserved "aux" shard load (aux~.json)', async ({ page
   const card = await search(page, 'Auxiliarverb');
   await expect(card.getByRole('heading')).toContainText('Auxiliarverb');
 });
+
+test('Turkish keyboard input: dotless ı and invisible characters still find the word', async ({ page }) => {
+  for (const q of ['mitbrıngen', 'mitbringen​', 'Mitbringen ']) {
+    const card = await search(page, q);
+    await expect(card.getByRole('heading')).toHaveText('mitbringen');
+  }
+});
