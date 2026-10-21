@@ -281,6 +281,20 @@ test('a matching drill repeats a wrong card with another matching round', () => 
   assert.equal(nextItem(s, ctx, T0), null);
 });
 
+test('matching falls back to another mode when the rotated one has fewer than 5 pairs (CI failure 2026-10-22)', () => {
+  // Only this card has a German definition and a synonym: "Wort ↔ Definition" and "Synonym" can't be
+  // filled, so its matching step must use DE ↔ TR instead of dropping to a flashcard.
+  const rich = card('Alpha', { entry: { w: 'Alpha', p: 'n', de: 'erster Buchstabe', syn: ['Anfang'] } });
+  rich.fsrs = { ...schedule(rich.fsrs, new Date(T0 - 600_000), 3) };
+  rich.due = T0 - 1;
+  const cards = [rich, ...['Beta', 'Gamma', 'Delta', 'Eps', 'Zeta'].map((x) => card(x))];
+  const s = startSession({ minutes: 10, newLeft: 0, reviewsLeft: 150 }, T0);
+  const item = nextItem(s, ctxOf(cards), T0)!;
+  assert.equal(item.kind, 'match');
+  assert.equal(item.mode, 'tr');
+  assert.deepEqual(item.cardIds, ['w:alpha']);
+});
+
 test('young and mature cards rotate through their exercise types', () => {
   const young = haus();
   young.fsrs = { ...young.fsrs, state: 2, scheduled_days: 5, reps: 0 };

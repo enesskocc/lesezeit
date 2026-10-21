@@ -99,10 +99,17 @@ export function exerciseFor(card: SessionCard, ctx: Context): ExerciseKind {
   return ok[(card.fsrs.reps + card.fsrs.lapses) % ok.length]!;
 }
 
-function matchMode(card: SessionCard): MatchMode {
+/**
+ * Matching modes to try for this card, best first: its expression mode, then the others rotated by
+ * review count. The caller takes the first one that yields 5 pairs — a mode most cards can't fill
+ * (e.g. "Wort ↔ Definition") must not cancel the matching step.
+ */
+function matchModes(card: SessionCard): MatchMode[] {
   const modes = modesFor(card);
-  const mwe = modes.find((m) => m === 'nv' || m === 'vp');
-  return mwe ?? modes[(card.fsrs.reps + card.fsrs.lapses) % modes.length]!;
+  const mwe = modes.filter((m) => m === 'nv' || m === 'vp');
+  const rest = modes.filter((m) => m !== 'nv' && m !== 'vp');
+  const k = rest.length ? (card.fsrs.reps + card.fsrs.lapses) % rest.length : 0;
+  return [...mwe, ...rest.slice(k), ...rest.slice(0, k)];
 }
 
 const byDue = (a: SessionCard, b: SessionCard) => a.due - b.due;
@@ -111,18 +118,19 @@ const isLearning = (c: SessionCard) => c.fsrs.state === 1 || c.fsrs.state === 3;
 function itemFor(card: SessionCard, s: SessionState, ctx: Context, now: number): Item {
   const kind = exerciseFor(card, ctx);
   if (kind !== 'match') return { kind, cardIds: [card.id] };
-  // Other due cards whose turn is matching too join the same round, within today's review limit.
-  const mode = matchMode(card);
-  let reviewRoom = s.config.reviewsLeft - s.reviewed - (card.fsrs.state === 2 ? 1 : 0);
-  const others = ctx.cards
-    .filter((c) => c.id !== card.id && c.due <= now && c.fsrs.state !== 0 && pairFor(c, mode) && exerciseFor(c, ctx) === 'match')
-    .sort(byDue)
-    .filter((c) => c.fsrs.state !== 2 || reviewRoom-- > 0)
-    .slice(0, MATCH_MAX - 1);
-  const rated = [card, ...others];
-  const pairs = buildMatch(mode, rated, ctx.cards.filter((c) => !rated.includes(c)), ctx.mwes, ctx.rand);
-  if (!pairs) return { kind: phaseOf(card.fsrs) === 'new' ? 'flash-de' : 'flash-tr', cardIds: [card.id] };
-  return { kind, cardIds: pairs.flatMap((p) => (p.cardId ? [p.cardId] : [])), pairs, mode };
+  for (const mode of matchModes(card)) {
+    // Other due cards whose turn is matching too join the same round, within today's review limit.
+    let reviewRoom = s.config.reviewsLeft - s.reviewed - (card.fsrs.state === 2 ? 1 : 0);
+    const others = ctx.cards
+      .filter((c) => c.id !== card.id && c.due <= now && c.fsrs.state !== 0 && pairFor(c, mode) && exerciseFor(c, ctx) === 'match')
+      .sort(byDue)
+      .filter((c) => c.fsrs.state !== 2 || reviewRoom-- > 0)
+      .slice(0, MATCH_MAX - 1);
+    const rated = [card, ...others];
+    const pairs = buildMatch(mode, rated, ctx.cards.filter((c) => !rated.includes(c)), ctx.mwes, ctx.rand);
+    if (pairs) return { kind, cardIds: pairs.flatMap((p) => (p.cardId ? [p.cardId] : [])), pairs, mode };
+  }
+  return { kind: phaseOf(card.fsrs) === 'new' ? 'flash-de' : 'flash-tr', cardIds: [card.id] };
 }
 
 function repeatWrong(s: SessionState, ctx: Context, now: number): Item | null {
@@ -133,10 +141,12 @@ function repeatWrong(s: SessionState, ctx: Context, now: number): Item | null {
     // A drill repeats with its own exercise type; a session picks by the card's new state.
     const drill = s.config.drill;
     if (drill === 'match') {
-      const mode = matchMode(card);
-      const pairs = buildMatch(mode, [card], ctx.cards.filter((c) => c.id !== id), ctx.mwes, ctx.rand);
-      if (!pairs) continue;
-      return { kind: drill, cardIds: [id], pairs, mode, repeat: true };
+      const others = ctx.cards.filter((c) => c.id !== id);
+      for (const mode of matchModes(card)) {
+        const pairs = buildMatch(mode, [card], others, ctx.mwes, ctx.rand);
+        if (pairs) return { kind: drill, cardIds: [id], pairs, mode, repeat: true };
+      }
+      continue;
     }
     if (drill) return { kind: drill, cardIds: [id], repeat: true };
     return { ...itemFor(card, s, ctx, now), repeat: true };

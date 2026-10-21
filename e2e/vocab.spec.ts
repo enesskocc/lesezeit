@@ -111,6 +111,9 @@ async function answerCorrectly(page: Page, pause: () => Promise<void> = async ()
 
 test.beforeEach(async ({ page }) => {
   await mockReaderApi(page);
+  // Cards get their dictionary data only from the text's embedded entries: an online lookup that
+  // finishes before or after "+ Kartlara ekle" would change the matching modes from run to run.
+  await page.route('**/lesezeit/dict/**', (route) => route.abort());
 });
 
 test('ACCEPTANCE: a 10-minute mixed session runs and the due dates update correctly', async ({ page }) => {
