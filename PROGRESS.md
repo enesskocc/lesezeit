@@ -18,7 +18,7 @@ _Last updated: 2026-10-21_
   - Windows-reserved shard names get a `~` (`aux~.json`) via `shardFile()`; `public/dict/LICENSE.md` ships the CC BY-SA notice.
   - Code review (agency-agents Code Reviewer) done; 12 findings fixed (double articles, homographs, regional "sein", NFC, reserved names, stale manifest, …).
 
-- **Milestone 3 — Pipeline without AI (first Actions run 2026-10-21: 8/8 texts from 7 sources committed; waiting for Enes' iPhone test)**
+- **Milestone 3 — Pipeline without AI ✅ accepted 2026-10-21** (first Actions run: 8/8 texts from 7 sources; list + preview clean on iPhone)
   - From GitHub's (US) runners the ZDFheute feed answers 404 although it works from Germany → watch the next scheduled runs; disable with a note if it stays 404.
   - Decisions (Enes, 2026-10-21): cron 03:30 UTC (05:30 CEST / 04:30 CET); skip texts > 1,500 words; phone shows a text list + plain preview until the M5 reader.
   - Public repo: `pipeline/` (run.ts, feeds.ts, extract.ts, text.ts, heuristics.ts, store.ts, dict-fs.ts, pipeline.test.ts), schemas `shared/texts.ts`, app `src/screens/Home.tsx` (list, level filter) + `TextPreview.tsx`, `src/lib/texts.ts`.
@@ -29,7 +29,7 @@ _Last updated: 2026-10-21_
   - Code review done (agency-agents Code Reviewer); fixed: per-candidate try/catch, per-item URL parsing, transient HTTP errors not remembered, fail run when everything is blocked, push rebase/retry, splitter (so/12./2025.), exact tracking-param names, atomic JSON writes, refuse `--data` inside the app repo.
 
 ## Next
-1. Enes: iPhone test of the text list + preview after the first real run. (M3 acceptance: ≥ 8 clean texts, no teaser/paywall)
+1. (done) M3 accepted. Session of 2026-10-21 stopped here as planned.
 2. Milestone 4 — Claude in the pipeline. **Before starting: check current Claude Code docs for `claude -p` and `claude setup-token`** (Enes' instruction). Enes must create the OAuth token and add the `CLAUDE_CODE_OAUTH_TOKEN` secret — give step-by-step instructions.
 
 ## Open questions
