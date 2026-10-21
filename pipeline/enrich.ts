@@ -5,8 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import { normalizeKey } from '../shared/dict.ts';
-import { CASES, LEVELS, LevelAiSchema, type Level, type PendingSteps, type Question, type TextFile, type Token } from '../shared/texts.ts';
+import { normalizeKey, type LemmaEntry } from '../shared/dict.ts';
+import { CASES, LEVELS, LevelAiSchema, TOPICS, type Level, type PendingSteps, type Question, type TextFile, type Token } from '../shared/texts.ts';
 import { ClaudeCallError, type Claude } from './claude.ts';
 import type { FsDictionary } from './dict-fs.ts';
 import { numbered, tokenize } from './tokenize.ts';
@@ -43,8 +43,9 @@ const LEVEL_JSON = {
     level: { type: 'string', enum: [...LEVELS] },
     confidence: { type: 'number', minimum: 0, maximum: 1 },
     reasons_tr: { type: 'string' },
+    topic: { type: 'string', enum: Object.keys(TOPICS) },
   },
-  required: ['level', 'confidence', 'reasons_tr'],
+  required: ['level', 'confidence', 'reasons_tr', 'topic'],
   additionalProperties: false,
 };
 
@@ -60,6 +61,7 @@ export async function levelText(text: TextFile, d: EnrichDeps): Promise<void> {
   }
   text.levelAi = r;
   text.level = r.level;
+  if (r.topic) text.topic = r.topic;
   // Spec: AI and heuristics two or more levels apart → keep the AI level but flag the text.
   if (Math.abs(levelIndex(r.level) - levelIndex(text.levelHeuristic)) >= 2) text.flagged = true;
   else delete text.flagged;
@@ -343,6 +345,26 @@ export async function checkQuestions(text: TextFile, d: EnrichDeps): Promise<voi
   text.ai!.questionsChecked = true;
 }
 
+// ---- Offline dictionary ------------------------------------------------------------------------
+
+/**
+ * Embeds the dictionary entries of every lemma in the text (no Claude call). The reader's word
+ * sheet then needs no dictionary download and works in airplane mode.
+ */
+export function attachDictionary(text: TextFile, dict: FsDictionary): void {
+  const out: Record<string, LemmaEntry[]> = {};
+  for (const s of text.sentences) {
+    for (const t of s.tok ?? []) {
+      if (t.k !== 'w' || !t.l || t.pos === 'PROPN') continue;
+      const key = normalizeKey(t.l);
+      if (out[key]) continue;
+      const entries = dict.info(t.l).entries.filter((e) => normalizeKey(e.w) === key);
+      if (entries.length) out[key] = entries;
+    }
+  }
+  text.dict = out;
+}
+
 // ---- Orchestration -----------------------------------------------------------------------------
 
 /** What is still missing, computed from the text itself (so state/pending.json can never drift). */
@@ -387,6 +409,7 @@ export async function enrich(text: TextFile, d: EnrichDeps): Promise<void> {
   if (!text.ai.questionsChecked) await step(() => checkQuestions(text, d));
 
   text.ai.lemmaFlags = text.sentences.reduce((n, s) => n + (s.tok?.filter((t) => t.flag).length ?? 0), 0);
+  attachDictionary(text, d.dict);
   text.annotated = true;
   text.annotatedAt = new Date().toISOString();
   d.save(text);

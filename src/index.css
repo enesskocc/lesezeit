@@ -62,6 +62,22 @@ button { cursor: pointer; }
   .field { @apply w-full rounded-[10px] border border-line bg-bg px-3 py-2.5 text-base text-ink; }
 }
 
+/* Reader word colouring (spec: new = dotted underline, learning = yellow, known/ignored = plain). */
+.w { cursor: pointer; border-radius: 4px; padding: 0 1px; -webkit-tap-highlight-color: transparent; }
+.w.new { text-decoration: underline dotted var(--muted); text-underline-offset: 5px; }
+.w.learning { background: var(--learn); }
+.w.hl { outline: 2px solid var(--accent); outline-offset: 1px; }
+.artcol .w[data-art='der'] { color: var(--der); }
+.artcol .w[data-art='die'] { color: var(--die); }
+.artcol .w[data-art='das'] { color: var(--das); }
+.sent { border-radius: 6px; transition: background 0.2s; }
+.sent.proof, .sent.speaking { background: var(--accent-soft); }
+.sbtn {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 700; line-height: 18px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+  border-radius: 6px; padding: 0 5px; margin-left: 4px; vertical-align: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }

@@ -11,6 +11,7 @@ import { FsDictionary } from './dict-fs.ts';
 import { extractArticle } from './extract.ts';
 import { Claude } from './claude.ts';
 import { aiPhase, type AiPhaseResult } from './daily.ts';
+import { attachDictionary } from './enrich.ts';
 import { canonicalUrl, fetchText, interleave, parseFeed, quickReject, urlHash, type FeedItem } from './feeds.ts';
 import { computeHeuristics, levelFromScore } from './heuristics.ts';
 import { berlinDate, DataRepo } from './store.ts';
@@ -170,6 +171,15 @@ for (const c of candidates) {
     reject(c.id, 'extract');
     log.errors.push(`${c.url}: ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+// Annotated texts from before milestone 5 get their offline dictionary entries (no Claude call).
+for (const e of index.texts.filter((t) => t.annotated)) {
+  const text = repo.loadText(e.path);
+  if (text.dict) continue;
+  attachDictionary(text, dict);
+  repo.updateText(text, e.path, index);
+  console.log(`  + offline dictionary for ${e.id} (${Object.keys(text.dict!).length} lemmas)`);
 }
 
 // 5–6. Claude: level, annotate and write questions for today's text (one per run by default).

@@ -32,7 +32,8 @@ function explain(res: Response): string {
 
 async function send(token: string, path: string, accept: string, init: RequestInit = {}): Promise<Response> {
   try {
-    return await fetch(`${API}${path}`, { ...init, headers: headers(token, accept), cache: 'no-store' });
+    // A weak mobile connection must not leave the app on "Yükleniyor…" forever.
+    return await fetch(`${API}${path}`, { ...init, headers: headers(token, accept), cache: 'no-store', signal: AbortSignal.timeout(12_000) });
   } catch {
     throw new GitHubError(0, 'GitHub’a bağlanılamadı. İnternet bağlantını kontrol et.');
   }

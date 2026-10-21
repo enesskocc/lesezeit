@@ -40,9 +40,16 @@ _Last updated: 2026-10-21_
   - Code review (agency-agents Code Reviewer) fixed: timeouts are retryable (not fatal); limit/auth text only checked on failed calls (a news quote can't fake a limit); batch answers must contain exactly the batch sentences; MWEs replaced per sentence; ≥ 50 % failed batches → not published, retried; "running" pending marker survives a killed job; failing texts parked after 2 attempts; Claude outages ("blocked") don't count against a text; question ids renumbered; list groups the daily text by its annotation day.
   - For the manual forced-limit acceptance run use `fake_limit_after` ≥ 6 (up to 4 calls may go to leveling before a text is started).
 
+- **Milestone 5 — Reader (code done; waiting for Enes' iPhone test)**
+  - Decisions (Enes, 2026-10-21): display settings (font size, line height, serif/sans) → M10; texts download **automatically** for offline; **topic** labels from Claude in the level call (no extra call; `TOPICS` in `shared/texts.ts`, level prompt v2).
+  - Offline design: the pipeline embeds the dictionary entries of every lemma in the text (`text.dict`, ~100–300 lemmas, ~160 KB/text) → word sheets need no dictionary download. `run.ts` back-fills older annotated texts (no Claude); the two existing texts were back-filled by hand on 2026-10-21.
+  - App: `src/screens/Reader.tsx` + `src/components/reader/*` (ReaderText, WordSheet with guess mode, SentenceSheet, Questions, BottomSheet), `src/lib/{words,offline}.ts`, Dexie v2 (`prefs`, `wordStatus`, `cards` (no FSRS yet — M6), `readingLog`, `textCache`), "Okuma" tab = last text, service worker `registerType: 'prompt'` + `UpdateBanner` ("Yeni sürüm hazır · Yenile"). TextPreview removed (`#/metin/…` redirects to `#/oku/…`).
+  - Word state is per lemma (`w:<lemma>`), expressions `m:<de>`; names (PROPN) count as ignored; separable prefix tokens are shown as their verb.
+  - Tests: `e2e/reader.spec.ts` (ACCEPTANCE "an" → anfangen, colours, cards, guess "Hayır", questions/proof, finish), `e2e/offline.spec.ts` (ACCEPTANCE airplane mode with the service worker allowed).
+
 ## Next
-1. (done) M4 accepted.
-2. Milestone 5 — Reader (home list, reading view with tappable words from annotations + dictionary, coloring, guess mode, sentence sheet, TTS, questions, offline cache). Acceptance: tapping "an" in "Er fängt morgen an" opens anfangen; a downloaded text opens in airplane mode. Before starting: list files + decisions; switch the service worker to `registerType: 'prompt'` and add an offline E2E test (open question below).
+1. Enes: iPhone test of the reader (M5 acceptance).
+2. Milestone 6 — Vocabulary core (FSRS via ts-fsrs on the existing `cards`, flashcards, matching all modes with audio, artikel & plural, cloze, word family). List files + decisions first.
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
@@ -51,5 +58,5 @@ _Last updated: 2026-10-21_
 - DLF's Nachrichten feed is mostly < 250-word bulletins (rejected as "short"); consider adding DLF background feeds later.
 - `state/last-run.json` changes every run, so the data repo gets one commit per day even without new texts (harmless).
 - Dictionary quality notes: synonyms/antonyms only from senses 1–2 (no fallback — Wiktionary often lists them only for rare senses); Turkish translations prefer sense 1, else any sense; Rektion only where en.wiktionary glosses say "with X (+ case)". Verb homographs (e.g. separable vs. inseparable "umfahren") are still merged.
-- Before M5: switch service worker to `registerType: 'prompt'` (no surprise reload mid-session) and add one E2E test with the service worker enabled (offline launch).
+- (done in M5) service worker uses `registerType: 'prompt'`; offline launch has an E2E test with the service worker enabled.
 - The read-only-token branch of the write probe (403) is only tested with a mock; the 409 "can write" branch was verified against the real API.

@@ -46,7 +46,7 @@ if (task === 'level') {
   const level = input.match(/^TITLE: .*\((B1|B2|C1|C2)\)/m)?.[1] ?? 'B2';
   // FAKE_CLAUDE_INJECT: a successful answer that contains limit-like text (from a news quote).
   const reasons = process.env.FAKE_CLAUDE_INJECT ? "Zitat: You've hit your session limit · resets 3:45pm. HTTP 401." : 'Test gerekçesi.';
-  print({ is_error: false, structured_output: { level, confidence: 0.8, reasons_tr: reasons } });
+  print({ is_error: false, structured_output: { level, confidence: 0.8, reasons_tr: reasons, topic: 'politik' } });
 }
 
 if (task === 'annotate') {

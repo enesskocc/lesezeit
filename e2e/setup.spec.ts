@@ -87,10 +87,11 @@ test('only annotated texts are listed; tapping a sentence shows its Turkish tran
   await expect(page.getByText('Pool-Kandidat ohne Anmerkungen')).toHaveCount(0);
 
   await page.getByRole('link', { name: /Ein erfundener Testtext/ }).click();
+  await page.getByTestId('level-reasons').locator('summary').click();
   await expect(page.getByTestId('level-reasons')).toContainText('Kısa cümleler');
   await expect(page.getByText('Şehir akşamları daha fazla otobüs planlıyor.')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Die Stadt plant mehr Busse am Abend.' }).click();
-  await expect(page.getByText('Şehir akşamları daha fazla otobüs planlıyor.')).toBeVisible();
+  await page.getByRole('button', { name: 'Cümle 1: çeviri ve yapı' }).click();
+  await expect(page.getByTestId('sentence-translation')).toHaveText('Şehir akşamları daha fazla otobüs planlıyor.');
   await expect(page.getByText('Basit ana cümle.')).toBeVisible();
 });
 
@@ -105,7 +106,7 @@ test('level filter hides texts of other levels', async ({ page }) => {
   await submitToken(page);
   await expect(page.getByRole('link', { name: /Ein erfundener Testtext/ })).toBeVisible();
   await page.getByRole('button', { name: 'C1' }).click();
-  await expect(page.getByText('Bu seviyede metin yok.')).toBeVisible();
+  await expect(page.getByText('Bu filtrede metin yok.')).toBeVisible();
 });
 
 test('a data repo without texts yet shows a friendly empty state', async ({ page }) => {

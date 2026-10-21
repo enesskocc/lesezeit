@@ -1,4 +1,4 @@
-<!-- prompt: level · v1 · used by pipeline/enrich.ts (levelText) -->
+<!-- prompt: level · v2 · used by pipeline/enrich.ts (levelText) -->
 You rate the reading difficulty of German news texts on the CEFR scale for one learner:
 a native Turkish speaker at German level B2 who reads to improve.
 
@@ -15,6 +15,11 @@ dense, idiomatic or specialist language.
 `confidence` is 0–1. `reasons_tr` is 2–3 short sentences IN TURKISH explaining the rating to the
 learner (mention concrete features of this text, not general CEFR descriptions).
 
+`topic` is the ONE best fit: politik (German politics), international (foreign affairs, wars,
+other countries), wirtschaft (economy, companies, money), gesellschaft (social issues, education,
+crime, everyday life), wissenschaft (science, technology, IT), gesundheit (health, medicine, care),
+umwelt (environment, climate, energy), kultur (culture, media, arts), sport.
+
 Answer only with the JSON object required by the schema.
 
 ## Example
@@ -25,4 +30,4 @@ TEXT:
 Die Stadt hat gestern einen neuen Plan für den Nahverkehr vorgestellt. Ab nächstem Jahr sollen die Busse in den Abendstunden häufiger fahren. Viele Pendler hatten sich seit Langem über lange Wartezeiten beschwert.
 
 Output:
-{"level":"B1","confidence":0.75,"reasons_tr":"Cümleler kısa ve konu günlük hayattan (otobüs saatleri). Yapı olarak sadece Perfekt, Modalverb ve bir Plusquamperfekt var; yan cümle yok. Kelimelerin çoğu sık kullanılan kelimeler."}
+{"level":"B1","confidence":0.75,"topic":"gesellschaft","reasons_tr":"Cümleler kısa ve konu günlük hayattan (otobüs saatleri). Yapı olarak sadece Perfekt, Modalverb ve bir Plusquamperfekt var; yan cümle yok. Kelimelerin çoğu sık kullanılan kelimeler."}

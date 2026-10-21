@@ -79,6 +79,10 @@ test('enrich: level, annotation with dictionary check, separable verb link, ques
   assert.equal(text.ai?.questionsChecked, true);
   assert.ok(text.mwes && text.mwes.length >= 1 && toks.some((t) => t.mwe));
   assert.deepEqual(stepsFor(text), { level: false, batches: [], questions: false, check: false });
+  // Offline dictionary embedded for the reader: grammar of "anfangen" travels with the text.
+  assert.equal(text.dict?.anfangen?.[0]?.prt, 'fing an');
+  assert.equal(text.dict?.haus?.[0]?.pl, 'Häuser');
+  assert.equal(text.topic, 'politik');
 });
 
 test('a gender the dictionary does not know for that noun is flagged', async () => {

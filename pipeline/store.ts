@@ -38,6 +38,7 @@ export function entryOf(text: TextFile, rel: string): IndexEntry {
   if (text.annotatedAt) e.annotatedAt = text.annotatedAt;
   if (text.target) e.target = text.target;
   if (text.parked) e.parked = true;
+  if (text.topic) e.topic = text.topic;
   return e;
 }
 

@@ -12,7 +12,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt: a new version waits for a tap on "Yenile" (UpdateBanner), never reloads mid-reading.
+      registerType: 'prompt',
       // Icons are generated from public/icon.svg by `npm run icons` (pwa-assets.config.ts).
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg'],
       manifest: {

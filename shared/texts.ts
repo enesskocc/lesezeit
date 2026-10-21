@@ -6,12 +6,28 @@
 //   texts/YYYY-MM-DD/<id>.json   one text: paragraphs, sentences, heuristics (+ annotations from M4)
 //   state/seen.json              URL hash → stored / rejected, so nothing is fetched twice
 import { z } from 'zod';
+import { LemmaEntrySchema } from './dict.ts';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const LEVELS = ['B1', 'B2', 'C1', 'C2'] as const;
 export const LevelSchema = z.enum(LEVELS);
 export type Level = z.infer<typeof LevelSchema>;
+
+/** Topic of a text (given by Claude in the level call; Enes, 2026-10-21) → Turkish label in the app. */
+export const TOPICS = {
+  politik: 'Politika',
+  international: 'Dünya',
+  wirtschaft: 'Ekonomi',
+  gesellschaft: 'Toplum',
+  wissenschaft: 'Bilim & teknoloji',
+  gesundheit: 'Sağlık',
+  umwelt: 'Çevre & iklim',
+  kultur: 'Kültür',
+  sport: 'Spor',
+} as const;
+export type Topic = keyof typeof TOPICS;
+export const TopicSchema = z.enum(Object.keys(TOPICS) as [Topic, ...Topic[]]);
 
 export const SourceSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/), // "tagesschau", "dlf"
@@ -121,6 +137,7 @@ export const LevelAiSchema = z.object({
   level: LevelSchema,
   confidence: z.number().min(0).max(1),
   reasons_tr: z.string(),
+  topic: TopicSchema.optional(),
 });
 
 export const TextFileSchema = z.object({
@@ -141,6 +158,7 @@ export const TextFileSchema = z.object({
   levelHeuristic: LevelSchema,
   level: LevelSchema.optional(), // AI level (milestone 4)
   levelAi: LevelAiSchema.optional(),
+  topic: TopicSchema.optional(),
   flagged: z.boolean().optional(), // AI and heuristics differ by ≥ 2 levels (milestone 4)
   annotated: z.boolean(), // every sentence annotated + questions done (milestone 4)
   annotatedAt: z.string().optional(),
@@ -149,6 +167,9 @@ export const TextFileSchema = z.object({
 
   mwes: z.array(MweSchema).optional(),
   questions: z.array(QuestionSchema).optional(),
+  /** Dictionary entries for every lemma in the text (normalized lemma → entries), so the reader's
+   *  word sheet works offline without downloading dictionary shards (milestone 5). */
+  dict: z.record(z.string(), z.array(LemmaEntrySchema)).optional(),
   questionsFlagged: z.boolean().optional(), // the independent check still found problems
   ai: z
     .object({
@@ -178,6 +199,7 @@ export const IndexEntrySchema = TextFileSchema.pick({
   annotatedAt: true,
   target: true,
   parked: true,
+  topic: true,
 }).extend({ path: z.string() });
 export type IndexEntry = z.infer<typeof IndexEntrySchema>;
 
