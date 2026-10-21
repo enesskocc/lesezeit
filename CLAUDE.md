@@ -18,7 +18,9 @@ Private German reading + vocabulary PWA for Enes only. Never published to any st
 - `npm run test:e2e` — Playwright WebKit (iPhone 15 profile) against `vite preview`; build first. GitHub API is mocked.
 - `npm run lock:check` before every push (Windows npm drops Linux-only optional deps → CI `npm ci` fails); fix with `npm run lock:refresh`.
 - `npm run icons` — regenerate PWA icons from `public/icon.svg`.
-- `npm run test:unit` — node:test unit tests (dictionary importer).
+- `npm run test:unit` — node:test unit tests (dictionary importer + pipeline). Pipeline fixtures are synthetic HTML only.
+- `npm run pipeline -- --data <folder>` — run the daily pipeline locally. Use a temp folder (e.g. `%LOCALAPPDATA%\lz-dry`) with a copy of `sources.json`/`pipeline.json`; it refuses paths inside this repo. In production it runs from `lesezeit-data/.github/workflows/daily.yml` (03:30 UTC + manual "Run workflow").
+- `fs.rmSync` silently does nothing on this machine's "Masaüstü" paths (Node 24) — always use `fs.promises.rm`. That is why `prebuild` clears `dist/` itself.
 - `npm run dict:build` — rebuild `public/dict/` from Wiktionary (~3 min, downloads ~420 MB once to `%LOCALAPPDATA%\lesezeit-dict-cache`, never into OneDrive). Rebuild rarely: every rebuild adds ~14 MB to git history.
 - Node runs `.ts` scripts directly (type stripping): imports inside `scripts/` and `shared/` used by scripts need explicit `.ts` extensions; no enums/namespaces (`erasableSyntaxOnly`).
 - Graphify: `python -m graphify update .` after big changes; query with `python -m graphify query "..."`.

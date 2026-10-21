@@ -1,16 +1,38 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // The GitHub API is mocked: these tests never touch the real repo or a real token.
+// Texts are synthetic — no real news text in this public repo.
 const API = 'https://api.github.com';
 const REPO = `${API}/repos/enesskocc/lesezeit-data`;
-const FILE = `${REPO}/contents/test/hello.json`;
+const PROBE = `${REPO}/contents/test/hello.json`;
+const INDEX = `${REPO}/contents/texts/index.json`;
+const TEXT = `${REPO}/contents/texts/2026-10-21/a1b2c3d4e5.json`;
 const FAKE_TOKEN = 'github_pat_TEST_ONLY_not_a_real_token';
+
+const heuristics = {
+  sentences: 2, words: 20, avgSentenceLength: 10, rareShare: 0.2, unknownShare: 0.1,
+  subordinatePerSentence: 0.5, passivePer100: 0, konjunktivPer100: 0, score: 0.33,
+};
+const textFile = {
+  version: 1, id: 'a1b2c3d4e5', kind: 'news', date: '2026-10-21', source: 'test', sourceName: 'Testquelle',
+  url: 'https://example.de/testtext', title: 'Ein erfundener Testtext', fetchedAt: '2026-10-21T03:30:00Z', wordCount: 20,
+  paragraphs: ['Die Stadt plant mehr Busse am Abend.', 'Viele Pendler hatten sich beschwert.'],
+  sentences: [{ p: 0, t: 'Die Stadt plant mehr Busse am Abend.' }, { p: 1, t: 'Viele Pendler hatten sich beschwert.' }],
+  heuristics, levelHeuristic: 'B2', annotated: false,
+};
+const indexFile = {
+  version: 1, updatedAt: '2026-10-21T03:35:00Z',
+  texts: [{
+    id: textFile.id, kind: 'news', date: textFile.date, source: 'test', sourceName: 'Testquelle', url: textFile.url,
+    title: textFile.title, wordCount: 20, levelHeuristic: 'B2', annotated: false, path: 'texts/2026-10-21/a1b2c3d4e5.json',
+  }],
+};
 
 interface Mock {
   repo?: { status: number; body?: object };
   /** Status of the wrong-sha write probe: 409 = can write, 403 = read-only. */
   probe?: number;
-  file?: object;
+  index?: { status: number; body?: object };
 }
 
 async function mockGitHub(page: Page, m: Mock = {}) {
@@ -21,11 +43,9 @@ async function mockGitHub(page: Page, m: Mock = {}) {
     seenAuth.push(route.request().headers()['authorization'] ?? '');
     return route.fulfill({ status: m.repo?.status ?? 200, json: m.repo?.body ?? { private: true } });
   });
-  await page.route(FILE, (route) =>
-    route.request().method() === 'PUT'
-      ? route.fulfill({ status: m.probe ?? 409, json: { message: 'sha mismatch' } })
-      : route.fulfill({ json: m.file ?? { message: 'Hallo aus lesezeit-data!', createdAt: '2026-10-15' } }),
-  );
+  await page.route(PROBE, (route) => route.fulfill({ status: m.probe ?? 409, json: { message: 'sha mismatch' } }));
+  await page.route(INDEX, (route) => route.fulfill({ status: m.index?.status ?? 200, json: m.index?.body ?? indexFile }));
+  await page.route(TEXT, (route) => route.fulfill({ json: textFile }));
   return seenAuth;
 }
 
@@ -36,15 +56,34 @@ async function submitToken(page: Page) {
   await page.getByRole('button', { name: 'Kaydet ve test et' }).click();
 }
 
-test('first launch → setup → home shows the test file', async ({ page }) => {
+test('first launch → setup → text list → plain preview', async ({ page }) => {
   const seenAuth = await mockGitHub(page);
   await submitToken(page);
-  await expect(page.getByTestId('test-message')).toHaveText('Hallo aus lesezeit-data!');
+  await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
   expect(seenAuth[0]).toBe(`Bearer ${FAKE_TOKEN}`);
 
+  await page.getByRole('link', { name: /Ein erfundener Testtext/ }).click();
+  await expect(page.getByRole('heading', { name: 'Ein erfundener Testtext' })).toBeVisible();
+  await expect(page.getByText('Viele Pendler hatten sich beschwert.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Original öffnen' })).toHaveAttribute('href', 'https://example.de/testtext');
+
   // Keys survive a reload (IndexedDB), so setup is skipped.
-  await page.reload();
+  await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
+});
+
+test('level filter hides texts of other levels', async ({ page }) => {
+  await mockGitHub(page);
+  await submitToken(page);
+  await expect(page.getByRole('link', { name: /Ein erfundener Testtext/ })).toBeVisible();
+  await page.getByRole('button', { name: 'C1' }).click();
+  await expect(page.getByText('Bu seviyede metin yok.')).toBeVisible();
+});
+
+test('a data repo without texts yet shows a friendly empty state', async ({ page }) => {
+  await mockGitHub(page, { index: { status: 404 } });
+  await submitToken(page);
+  await expect(page.getByText(/Henüz metin yok/)).toBeVisible();
 });
 
 test('invalid token shows a Turkish error and stays on setup', async ({ page }) => {
@@ -66,16 +105,17 @@ test('public data repo is rejected', async ({ page }) => {
   await expect(page.getByRole('alert')).toContainText('private olmalı');
 });
 
-test('malformed test file shows an error on home', async ({ page }) => {
-  await mockGitHub(page, { file: { wrong: true } });
+test('malformed index shows an error with a retry button', async ({ page }) => {
+  await mockGitHub(page, { index: { status: 200, body: { wrong: true } } });
   await submitToken(page);
-  await expect(page.getByRole('alert')).toContainText('beklenen biçimde değil');
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tekrar dene' })).toBeVisible();
 });
 
 test('deleting keys returns to setup', async ({ page }) => {
   await mockGitHub(page);
   await submitToken(page);
-  await expect(page.getByTestId('test-message')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
   await page.getByRole('link', { name: 'Ayarlar' }).click();
   page.once('dialog', (d) => void d.accept());
   await page.getByRole('button', { name: 'Anahtarları bu cihazdan sil' }).click();

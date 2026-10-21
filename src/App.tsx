@@ -8,6 +8,7 @@ import { Dictionary } from './screens/Dictionary';
 import { Home } from './screens/Home';
 import { Licenses } from './screens/Licenses';
 import { Setup } from './screens/Setup';
+import { TextPreview } from './screens/TextPreview';
 
 // iOS sometimes loses the IndexedDB connection after a long suspend and the open never resolves.
 const DB_TIMEOUT_MS = 5000;
@@ -33,6 +34,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={token ? <Home token={token} /> : <Navigate to="/kurulum" replace />} />
           <Route path="/kurulum" element={<Setup existing={settings} />} />
+          <Route path="/metin/:date/:id" element={token ? <TextPreview token={token} /> : <Navigate to="/kurulum" replace />} />
           <Route path="/sozluk" element={<Dictionary />} />
           <Route path="/lisanslar" element={<Licenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
