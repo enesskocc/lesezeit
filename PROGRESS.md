@@ -29,7 +29,7 @@ _Last updated: 2026-10-21_
   - Code review done (agency-agents Code Reviewer); fixed: per-candidate try/catch, per-item URL parsing, transient HTTP errors not remembered, fail run when everything is blocked, push rebase/retry, splitter (so/12./2025.), exact tracking-param names, atomic JSON writes, refuse `--data` inside the app repo.
 
 - 2026-10-21: dictionary search ignores invisible characters (zero-width space from keyboard suggestions, soft hyphen) and maps Turkish ı/İ → i (Enes could not find "mitbringen" on the iPhone; desktop + iPhone WebKit worked).
-- **Milestone 4 — Claude in the pipeline (pipeline acceptance passed 2026-10-21; waiting for Enes' iPhone check)**
+- **Milestone 4 — Claude in the pipeline ✅ accepted 2026-10-21** (pipeline acceptance + iPhone: two texts listed, level reasons and tap-to-translate work)
   - Real runs 2026-10-21 with the subscription (`authMethod: oauth_token`, Claude Code 2.1.304, Opus): run 1 annotated a B2 text in 6 calls / 3 min (lemma flags 10 = compound nouns missing from the dictionary; questions passed the check first time). Run 2 with `fake_limit_after=6` stopped at the questions step and left `state/pending.json` = `{level:false, batches:[], questions:true, check:true, reason:"limit"}`, matching the saved text (34/34 sentences annotated, `annotated:false`, not listed). Run 3 resumed it with 2 calls and emptied pending. → the C1 text of the day. Next scheduled target: B2.
   - Token: created 2026-10-21 with `claude setup-token`, valid ~1 year → renew around 2027-10 (the morning run turns red with "authentication failed").
   - Docs checked 2026-10-21 (code.claude.com): `claude setup-token` → 1-year OAuth token, secret `CLAUDE_CODE_OAUTH_TOKEN`; native installer; never `--bare` (ignores OAuth); `ANTHROPIC_API_KEY` outranks OAuth → workflow refuses to run with it; `--json-schema` → `structured_output`; failures come as `is_error: true` (subtype may still be "success"); limit text "You've hit your … limit · resets …".
@@ -41,8 +41,8 @@ _Last updated: 2026-10-21_
   - For the manual forced-limit acceptance run use `fake_limit_after` ≥ 6 (up to 4 calls may go to leveling before a text is started).
 
 ## Next
-1. Enes: `claude setup-token` + `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo enesskocc/lesezeit-data` (token never in chat).
-2. Run the workflow normally (1 annotated text) and once with `fake_limit_after` (pending list) → M4 acceptance; then Enes' iPhone check (AI level + tap-to-translate).
+1. (done) M4 accepted.
+2. Milestone 5 — Reader (home list, reading view with tappable words from annotations + dictionary, coloring, guess mode, sentence sheet, TTS, questions, offline cache). Acceptance: tapping "an" in "Er fängt morgen an" opens anfangen; a downloaded text opens in airplane mode. Before starting: list files + decisions; switch the service worker to `registerType: 'prompt'` and add an offline E2E test (open question below).
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
