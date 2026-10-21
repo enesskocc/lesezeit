@@ -103,8 +103,10 @@ export function WordSheet({ text, s, i, states, guessMode, onClose }: Props) {
 
   const save = (via: 'add' | 'guess') =>
     addCard({
-      key, kind: 'lemma', display: displayLemma(tok, entry), pos: verbPart.pos, meaning_tr: meaning ?? entry?.tr?.[0] ?? entry?.en?.[0] ?? '',
-      text, s, tokens: group, via,
+      key, kind: 'lemma', display: displayLemma(tok, entry), lemma: tok.l!, pos: verbPart.pos, entry,
+      meaning_tr: meaning ?? entry?.tr?.[0] ?? entry?.en?.[0] ?? '',
+      // The word and its separable partner only, not the whole expression: these become the cloze gaps.
+      text, s, tokens: tok.sep !== undefined ? [Math.min(i, tok.sep), Math.max(i, tok.sep)] : [i], via,
     });
 
   if (!revealed) {
@@ -238,7 +240,10 @@ export function WordSheet({ text, s, i, states, guessMode, onClose }: Props) {
             className="btn mt-2"
             disabled={!!mweCard}
             onClick={() =>
-              addCard({ key: mweKey(mwe), kind: 'mwe', display: mwe.de, meaning_tr: mwe.tr, text, s, tokens: mwe.tok, via: 'add' })
+              addCard({
+                key: mweKey(mwe), kind: 'mwe', display: mwe.de, lemma: mwe.de, meaning_tr: mwe.tr, mweKind: mwe.kind,
+                text, s, tokens: mwe.tok, via: 'add',
+              })
             }
           >
             {mweCard ? 'İfade kartlarda' : '+ İfadeyi kartlara ekle'}

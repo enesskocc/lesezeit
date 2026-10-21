@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ARTICLE, normalizeKey, type LemmaEntry } from '../../shared/dict';
 import type { Mwe, TextFile, Token } from '../../shared/texts';
 import { db, type CardRow, type WordState } from './db';
+import { tokenSpans } from './exercises';
+import { newFsrs } from './srs';
 
 export type TokenState = 'new' | WordState;
 
@@ -85,28 +87,38 @@ export function displayLemma(t: Token, entry?: LemmaEntry): string {
   return t.l ?? t.s;
 }
 
-/** Saves a word/expression with this sentence as context; it becomes "learning" (yellow). */
+/** Saves a word/expression with this sentence as context; it becomes "learning" (yellow) and a new FSRS card. */
 export async function addCard(c: {
   key: string;
   kind: CardRow['kind'];
   display: string;
+  lemma: string;
   pos?: string;
   meaning_tr: string;
+  entry?: LemmaEntry;
+  mweKind?: Mwe['kind'];
   text: TextFile;
   s: number;
   tokens: number[];
   via: CardRow['via'];
 }): Promise<void> {
-  const context = { textId: c.text.id, date: c.text.date, s: c.s, sentence: c.text.sentences[c.s]!.t, tokens: c.tokens };
+  const sent = c.text.sentences[c.s]!;
+  const forms = [...c.tokens].sort((a, b) => a - b).map((i) => sent.tok?.[i]?.s ?? '').filter(Boolean);
+  const spans = sent.tok ? tokenSpans(sent.t, sent.tok, c.tokens) : undefined;
+  const context = { textId: c.text.id, date: c.text.date, s: c.s, sentence: sent.t, tokens: c.tokens, forms, spans };
   await db.transaction('rw', db.cards, db.wordStatus, async () => {
     const existing = await db.cards.get(c.key);
     if (existing) {
       if (!existing.contexts.some((x) => x.textId === context.textId && x.s === context.s)) existing.contexts.unshift(context);
+      existing.entry ??= c.entry;
       await db.cards.put(existing);
     } else {
+      const now = new Date();
+      const fsrs = newFsrs(now);
       await db.cards.put({
-        id: c.key, kind: c.kind, display: c.display, pos: c.pos, meaning_tr: c.meaning_tr,
-        contexts: [context], createdAt: new Date().toISOString(), via: c.via,
+        id: c.key, kind: c.kind, display: c.display, lemma: c.lemma, pos: c.pos, meaning_tr: c.meaning_tr,
+        entry: c.entry, mweKind: c.mweKind, contexts: [context], createdAt: now.toISOString(), via: c.via,
+        fsrs, due: Date.parse(fsrs.due),
       });
     }
     await db.wordStatus.put({ key: c.key, state: 'learning', updatedAt: new Date().toISOString() });

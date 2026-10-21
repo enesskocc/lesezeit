@@ -4,11 +4,14 @@ import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom
 import { BottomNav } from './components/BottomNav';
 import { FatalScreen } from './components/ErrorBoundary';
 import { db, getPrefs } from './lib/db';
+import { CardDetail } from './screens/CardDetail';
 import { Dictionary } from './screens/Dictionary';
 import { Home } from './screens/Home';
 import { Licenses } from './screens/Licenses';
 import { Reader } from './screens/Reader';
+import { Session } from './screens/Session';
 import { Setup } from './screens/Setup';
+import { Vocab } from './screens/Vocab';
 
 // iOS sometimes loses the IndexedDB connection after a long suspend and the open never resolves.
 const DB_TIMEOUT_MS = 5000;
@@ -51,6 +54,9 @@ export default function App() {
           <Route path="/oku/:date/:id" element={token ? <Reader token={token} /> : needToken} />
           <Route path="/okuma" element={token ? <LastText /> : needToken} />
           <Route path="/metin/:date/:id" element={<OldTextLink />} />
+          <Route path="/kelimeler" element={<Vocab />} />
+          <Route path="/kelimeler/oturum" element={<Session />} />
+          <Route path="/kart/:id" element={<CardDetail />} />
           <Route path="/sozluk" element={<Dictionary />} />
           <Route path="/lisanslar" element={<Licenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />

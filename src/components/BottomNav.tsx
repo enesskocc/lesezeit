@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
 
-// Okuma and Kelimeler tabs arrive with milestones 5 and 6.
 const items = [
   { to: '/', label: 'Bugün', icon: 'M4 5h16M4 10h16M4 15h10M4 20h7' },
   { to: '/okuma', label: 'Okuma', icon: 'M3 5c3-1 6-1 9 1 3-2 6-2 9-1v14c-3-1-6-1-9 1-3-2-6-2-9-1zM12 6v14' },
+  { to: '/kelimeler', label: 'Kelimeler', icon: 'M6 6h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM8 3h10a2 2 0 0 1 2 2v12' },
   { to: '/sozluk', label: 'Sözlük', icon: 'M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5 20 20' },
   { to: '/kurulum', label: 'Ayarlar', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12h2M3 12h2M12 3v2M12 19v2M17 7l1.5-1.5M5.5 18.5 7 17M17 17l1.5 1.5M5.5 5.5 7 7' },
 ];
@@ -19,7 +19,7 @@ export function BottomNav() {
           <NavLink
             key={it.to}
             to={it.to}
-            end
+            end={it.to === '/'}
             className={({ isActive }) =>
               `flex flex-1 flex-col items-center gap-0.5 py-1.5 text-xs font-semibold ${isActive ? 'text-accent' : 'text-muted'}`
             }

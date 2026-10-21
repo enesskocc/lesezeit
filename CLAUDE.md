@@ -31,5 +31,6 @@ Private German reading + vocabulary PWA for Enes only. Never published to any st
 - 2026-10-15: Write access is checked with a wrong-sha PUT (409 = can write, nothing written; 403 = read-only), because `permissions.push` shows the user's role, not the fine-grained token's.
 - 2026-10-15: Hash routing (`#/kurulum`) because Pages has no SPA fallback. Gemini key optional until milestone 8.
 - 2026-10-21 (Enes): **one Opus-annotated text per day**, B2/C1 in turn, pool of 4 fetched texts; app lists annotated texts only. Overrides the spec's "2 per level".
+- 2026-10-21 (Enes): vocabulary has **no "listen & type"** exercise; word family is rule-based; flashcards self-rate with 4 buttons. FSRS learning steps 1m/5m/10m (see PROGRESS M6).
 - Claude in CI: `claude -p` with `CLAUDE_CODE_OAUTH_TOKEN`; never `--bare`; never set `ANTHROPIC_API_KEY` (it would bill the API). Tests use `pipeline/testing/fake-claude.mjs`; `LESEZEIT_CLAUDE_CMD` (JSON array) swaps the binary, `LESEZEIT_FAKE_LIMIT_AFTER=N` forces a limit.
 - iOS: a home-screen PWA has storage separate from Safari → keys must be entered inside the installed app.

@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-21_
+_Last updated: 2026-10-22_
 
 ## Done
 - **Milestone 1 — Setup ✅ accepted 2026-10-21** (installed on iPhone, test message shown)
@@ -47,10 +47,17 @@ _Last updated: 2026-10-21_
   - Word state is per lemma (`w:<lemma>`), expressions `m:<de>`; names (PROPN) count as ignored; separable prefix tokens are shown as their verb.
   - Tests: `e2e/reader.spec.ts` (ACCEPTANCE "an" → anfangen, colours, cards, guess "Hayır", questions/proof, finish), `e2e/offline.spec.ts` (ACCEPTANCE airplane mode with the service worker allowed).
 
+- **Milestone 6 — Vocabulary core (built 2026-10-22, waiting for iPhone OK)**
+  - Decisions (Enes, 2026-10-21): **no "listen & type"** (left out of the composer too); **production** added now; verb forms + synonym/antonym → M10, own sentence → M8; **word family rule-based** (stem + known suffix from the dictionary's `fam`, invented distractors with wrong suffixes, checked against the dictionary before showing); **Nomen↔Verb / Verb↔Präp. matching** filled with expressions from downloaded texts as unrated pairs; **flashcard self-rating with 4 buttons + next interval**.
+  - FSRS: `ts-fsrs` 5.4.2, learning steps **1m / 5m / 10m** (Good → 5 min → 10 min → days, so a new card meets flashcard → matching → cloze in one session), relearning 10m, fuzz on, mature ≥ 21 days, day starts 04:00. Rating: wrong = Again, slow (> 10 s tap / 20 s typing) or hint or typo or wrong article = Hard, correct = Good, fast on mature = Easy. A mature card reads as "known" in the reader; a lapse makes it yellow again.
+  - Code: `src/lib/{srs,exercises,session,review}.ts` (first three pure, unit-tested in `src/lib/vocab.test.ts`), Dexie v3 (`cards` + `fsrs`/`due`/`entry`/`lemma`/`mweKind`/`contexts[].forms`, new `reviewLog`, prefs `newPerDay` 15 / `maxReviews` 150 / `sound` / `sessionMinutes`; the upgrade converts milestone 5 cards using the cached text), `src/components/vocab/*`, screens `Vocab` (Kelimeler tab), `Session` (`#/kelimeler/oturum?dk=10` or `?alistirma=cloze`), `CardDetail` (`#/kart/:id`, delete with undo), limits + sound in Ayarlar.
+  - Drills ("Alıştırma (tek tür)") let you try each exercise any time; on new or not-due cards they are practice only (logged, schedule unchanged).
+  - Code review (agency-agents Code Reviewer) fixed: cloze blanks by saved character positions (`contexts[].spans`; a repeated word no longer shows the answer), no "typo" for wrong endings or missing umlauts (macht/machte, Mutter/Mütter) and exact plurals, a queued second tap can't record an answer twice, one malformed card can't block the database upgrade, word-family answer time starts when the options appear, flashcard saves at its preview time (shown interval = stored interval), drills respect the review limit and don't count practice as new, a matching drill repeats with matching, limit fields save on blur.
+  - Tests: `e2e/vocab.spec.ts` — ACCEPTANCE 10-minute mixed session with Playwright's clock (6 cards from the reader, flashcard → matching → cloze, due dates checked in IndexedDB), drill = practice, list/detail/delete/undo, milestone 5 → 6 database upgrade.
+
 ## Next
-1. (done) M5 accepted.
-2. Milestone 6 — Vocabulary core (FSRS via ts-fsrs on the existing `cards`, flashcards, matching all modes with audio, artikel & plural, cloze, word family). List files + decisions first.
-3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
+1. Enes: iPhone test of M6 (steps in the chat), then milestone 7 (backup + coverage).
+2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
 - M3 heuristic "share of words outside the 5,000 most frequent lemmas": ranks come from subtitles (spoken German), so formal news words rank lower than in a news corpus — cuts were calibrated on real news texts, so this is accounted for.

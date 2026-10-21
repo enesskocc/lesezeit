@@ -1,7 +1,48 @@
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DATA_OWNER, DATA_REPO } from '../config';
-import { clearKeys, saveKeys, type Settings } from '../lib/db';
+import { clearKeys, DEFAULT_PREFS, getPrefs, saveKeys, setPrefs, type Settings } from '../lib/db';
+
+/** A daily limit: typed freely, saved on blur; an empty or invalid field keeps the saved value. */
+function LimitField({ label, value, max, onSave }: { label: string; value: number; max: number; onSave: (n: number) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <input
+        className="field w-24 text-right tabular-nums"
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={max}
+        value={draft ?? String(value)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = Math.round(Number(draft));
+          if (draft !== null && draft.trim() !== '' && Number.isFinite(n)) onSave(Math.min(max, Math.max(0, n)));
+          setDraft(null);
+        }}
+      />
+    </label>
+  );
+}
+
+/** Spec "Daily limits (settings)" and the one sound toggle for all exercise audio. */
+function VocabSettings() {
+  const prefs = useLiveQuery(getPrefs, [], DEFAULT_PREFS);
+  return (
+    <section className="card mt-4 flex flex-col gap-3" aria-label="Kelime çalışması">
+      <span className="label">Kelime çalışması</span>
+      <LimitField label="Günde yeni kart" value={prefs.newPerDay} max={100} onSave={(n) => void setPrefs({ newPerDay: n })} />
+      <LimitField label="Günde en fazla tekrar" value={prefs.maxReviews} max={999} onSave={(n) => void setPrefs({ maxReviews: n })} />
+      <label className="flex items-center justify-between gap-3">
+        <span>Alıştırmalarda ses</span>
+        <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={prefs.sound} onChange={(e) => void setPrefs({ sound: e.target.checked })} />
+      </label>
+    </section>
+  );
+}
 import { checkDataRepoAccess } from '../lib/github';
 
 // On iOS a home-screen app has its own storage, separate from Safari.
@@ -114,6 +155,8 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
           Anahtarları bu cihazdan sil
         </button>
       )}
+
+      {existing && <VocabSettings />}
 
       <Link to="/lisanslar" className="mt-6 block text-sm text-muted underline">
         Lisanslar ve kaynaklar
