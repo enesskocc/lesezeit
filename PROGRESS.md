@@ -40,7 +40,7 @@ _Last updated: 2026-10-21_
   - Code review (agency-agents Code Reviewer) fixed: timeouts are retryable (not fatal); limit/auth text only checked on failed calls (a news quote can't fake a limit); batch answers must contain exactly the batch sentences; MWEs replaced per sentence; ≥ 50 % failed batches → not published, retried; "running" pending marker survives a killed job; failing texts parked after 2 attempts; Claude outages ("blocked") don't count against a text; question ids renumbered; list groups the daily text by its annotation day.
   - For the manual forced-limit acceptance run use `fake_limit_after` ≥ 6 (up to 4 calls may go to leveling before a text is started).
 
-- **Milestone 5 — Reader (code done; waiting for Enes' iPhone test)**
+- **Milestone 5 — Reader ✅ accepted 2026-10-21** (iPhone: word sheet, guess mode, read-aloud, questions, airplane mode)
   - Decisions (Enes, 2026-10-21): display settings (font size, line height, serif/sans) → M10; texts download **automatically** for offline; **topic** labels from Claude in the level call (no extra call; `TOPICS` in `shared/texts.ts`, level prompt v2).
   - Offline design: the pipeline embeds the dictionary entries of every lemma in the text (`text.dict`, ~100–300 lemmas, ~160 KB/text) → word sheets need no dictionary download. `run.ts` back-fills older annotated texts (no Claude); the two existing texts were back-filled by hand on 2026-10-21.
   - App: `src/screens/Reader.tsx` + `src/components/reader/*` (ReaderText, WordSheet with guess mode, SentenceSheet, Questions, BottomSheet), `src/lib/{words,offline}.ts`, Dexie v2 (`prefs`, `wordStatus`, `cards` (no FSRS yet — M6), `readingLog`, `textCache`), "Okuma" tab = last text, service worker `registerType: 'prompt'` + `UpdateBanner` ("Yeni sürüm hazır · Yenile"). TextPreview removed (`#/metin/…` redirects to `#/oku/…`).
@@ -48,7 +48,7 @@ _Last updated: 2026-10-21_
   - Tests: `e2e/reader.spec.ts` (ACCEPTANCE "an" → anfangen, colours, cards, guess "Hayır", questions/proof, finish), `e2e/offline.spec.ts` (ACCEPTANCE airplane mode with the service worker allowed).
 
 ## Next
-1. Enes: iPhone test of the reader (M5 acceptance).
+1. (done) M5 accepted.
 2. Milestone 6 — Vocabulary core (FSRS via ts-fsrs on the existing `cards`, flashcards, matching all modes with audio, artikel & plural, cloze, word family). List files + decisions first.
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
