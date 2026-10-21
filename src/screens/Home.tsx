@@ -7,6 +7,8 @@ type State = { kind: 'loading' } | { kind: 'ok'; texts: IndexEntry[] } | { kind:
 
 const todayLabel = new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: 'numeric', month: 'long' });
 const dayLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+// en-CA formats as YYYY-MM-DD.
+const berlinDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' });
 
 function TextCard({ t }: { t: IndexEntry }) {
   const level = t.level ?? t.levelHeuristic;
@@ -55,8 +57,12 @@ export function Home({ token }: { token: string }) {
     if (state.kind !== 'ok') return [];
     const byDay = new Map<string, IndexEntry[]>();
     for (const t of state.texts) {
+      // Only the daily, fully annotated text is shown; the rest is the pipeline's candidate pool.
+      if (!t.annotated) continue;
       if (level !== 'all' && (t.level ?? t.levelHeuristic) !== level) continue;
-      byDay.set(t.date, [...(byDay.get(t.date) ?? []), t]);
+      // The daily text is picked from a 7-day pool: list it under the day it was prepared.
+      const day = t.annotatedAt ? berlinDay.format(new Date(t.annotatedAt)) : t.date;
+      byDay.set(day, [...(byDay.get(day) ?? []), t]);
     }
     return [...byDay].sort((a, b) => (a[0] < b[0] ? 1 : -1));
   }, [state, level]);
@@ -97,9 +103,9 @@ export function Home({ token }: { token: string }) {
         )}
         {state.kind === 'ok' && days.length === 0 && (
           <p className="text-muted">
-            {state.texts.length === 0
-              ? 'Henüz metin yok. Metinler her sabah yaklaşık 05:30’da hazırlanır.'
-              : 'Bu seviyede metin yok.'}
+            {state.texts.some((t) => t.annotated)
+              ? 'Bu seviyede metin yok.'
+              : 'Henüz hazır metin yok. Günün metni her sabah yaklaşık 05:30’da hazırlanır.'}
           </p>
         )}
         {days.map(([day, texts], i) => (

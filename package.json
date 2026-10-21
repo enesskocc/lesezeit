@@ -14,7 +14,7 @@
     "lock:check": "node scripts/lockfile.mjs check",
     "lock:refresh": "node scripts/lockfile.mjs refresh",
     "dict:build": "node --max-old-space-size=8192 scripts/dict/build.ts",
-    "test:unit": "node --test scripts/dict/lib.test.ts pipeline/pipeline.test.ts",
+    "test:unit": "node --test scripts/dict/lib.test.ts pipeline/pipeline.test.ts pipeline/ai.test.ts",
     "pipeline": "node pipeline/run.ts"
   },
   "dependencies": {

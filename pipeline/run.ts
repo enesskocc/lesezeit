@@ -9,16 +9,21 @@ import { parseArgs } from 'node:util';
 import type { Source, TextFile } from '../shared/texts.ts';
 import { FsDictionary } from './dict-fs.ts';
 import { extractArticle } from './extract.ts';
+import { Claude } from './claude.ts';
+import { aiPhase, type AiPhaseResult } from './daily.ts';
 import { canonicalUrl, fetchText, interleave, parseFeed, quickReject, urlHash, type FeedItem } from './feeds.ts';
 import { computeHeuristics, levelFromScore } from './heuristics.ts';
 import { berlinDate, DataRepo } from './store.ts';
 import { splitSentences, words } from './text.ts';
 
 const APP_ROOT = path.resolve(import.meta.dirname, '..');
+const RUN_STARTED = Date.now();
 const { values: args } = parseArgs({
   options: {
     data: { type: 'string' },
     dict: { type: 'string', default: path.join(APP_ROOT, 'public/dict') },
+    // Milestone 4: annotate today's text with Claude (needs CLAUDE_CODE_OAUTH_TOKEN).
+    ai: { type: 'boolean', default: false },
   },
 });
 if (!args.data) {
@@ -167,9 +172,38 @@ for (const c of candidates) {
   }
 }
 
+// 5–6. Claude: level, annotate and write questions for today's text (one per run by default).
+let ai: AiPhaseResult | undefined;
+if (args.ai) {
+  // Fetch results are on disk before the long AI phase starts.
+  repo.saveIndex(index);
+  repo.saveSeen(seen);
+  const fake = process.env.LESEZEIT_FAKE_LIMIT_AFTER?.trim();
+  if (fake && !/^\d+$/.test(fake)) throw new Error(`LESEZEIT_FAKE_LIMIT_AFTER must be a whole number, got "${fake}"`);
+  // Claude stops starting calls after this many minutes (workflow timeout is 45), so the job is
+  // never killed mid-step; unfinished work goes to state/pending.json as "budget".
+  const aiMinutes = Number(process.env.LESEZEIT_AI_MINUTES ?? 30);
+  try {
+    const claude = new Claude({
+      model: config.claudeModel,
+      maxCalls: config.maxClaudeCalls,
+      deadline: RUN_STARTED + aiMinutes * 60_000,
+      fakeLimitAfter: fake ? Number(fake) : undefined,
+      command: process.env.LESEZEIT_CLAUDE_CMD ? (JSON.parse(process.env.LESEZEIT_CLAUDE_CMD) as string[]) : undefined,
+    });
+    console.log(`\nAI phase (${config.claudeModel})`);
+    ai = await aiPhase({ repo, index, config, claude, dict, today });
+    console.log(`  Claude calls: ${claude.calls}`);
+  } catch (e) {
+    log.errors.push(`AI phase: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 repo.saveIndex(index);
 repo.saveSeen(seen);
-repo.saveRunLog({ ...log, finishedAt: new Date().toISOString() });
+repo.saveRunLog({ ...log, ai, finishedAt: new Date().toISOString() });
+if (ai?.stoppedBy) warn(`Claude ${ai.stoppedBy}: ${ai.message ?? ''} — unfinished work is in state/pending.json and continues next run.`);
+for (const id of ai?.parked ?? []) warn(`Text ${id} failed ${2} times and was parked (kept out of the daily pick).`);
 
 console.log(
   `\nStored ${log.stored.length}/${config.maxTextsPerRun} · fetched ${log.fetched} · transient ${log.transient} · rejected ${JSON.stringify(log.rejected)}`,
@@ -181,4 +215,6 @@ if (log.stored.length < config.maxTextsPerRun) warn(`Only ${log.stored.length} o
 // fail the run so GitHub shows it red and e-mails the owner. A quiet news day is not an error.
 const allBlocked = log.stored.length === 0 && log.fetched > 0 && log.transient === log.fetched;
 const allFeedsDown = candidates.length === 0 && log.feedErrors.length > 0 && log.feedErrors.length >= repo.sources().length;
-if (allBlocked || allFeedsDown) process.exit(1);
+// A usage limit is expected and handled (pending); an unexpected AI error is not.
+const aiFailed = log.errors.some((e) => e.startsWith('AI phase'));
+if (allBlocked || allFeedsDown || aiFailed) process.exit(1);

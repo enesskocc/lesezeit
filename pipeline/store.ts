@@ -3,17 +3,43 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { z } from 'zod';
 import {
+  PendingSchema,
   PipelineConfigSchema,
   SeenSchema,
   SourcesFileSchema,
+  TextFileSchema,
   TextIndexSchema,
   type IndexEntry,
+  type Pending,
   type PipelineConfig,
   type Seen,
   type Source,
   type TextFile,
   type TextIndex,
 } from '../shared/texts.ts';
+
+/** Index entry = metadata of a text file (no body). */
+export function entryOf(text: TextFile, rel: string): IndexEntry {
+  const e: IndexEntry = {
+    id: text.id,
+    kind: text.kind,
+    date: text.date,
+    source: text.source,
+    sourceName: text.sourceName,
+    url: text.url,
+    title: text.title,
+    wordCount: text.wordCount,
+    levelHeuristic: text.levelHeuristic,
+    annotated: text.annotated,
+    path: rel,
+  };
+  if (text.level) e.level = text.level;
+  if (text.flagged) e.flagged = true;
+  if (text.annotatedAt) e.annotatedAt = text.annotatedAt;
+  if (text.target) e.target = text.target;
+  if (text.parked) e.parked = true;
+  return e;
+}
 
 const SEEN_REJECTED_DAYS = 30; // seen.json forgets URLs after this; feeds have long dropped them by then
 
@@ -63,24 +89,33 @@ export class DataRepo {
     return seen;
   }
 
+  /** New text: written and put at the top of the index. */
   saveText(text: TextFile, index: TextIndex): IndexEntry {
     const rel = `texts/${text.date}/${text.id}.json`;
     this.write(rel, text);
-    const entry: IndexEntry = {
-      id: text.id,
-      kind: text.kind,
-      date: text.date,
-      source: text.source,
-      sourceName: text.sourceName,
-      url: text.url,
-      title: text.title,
-      wordCount: text.wordCount,
-      levelHeuristic: text.levelHeuristic,
-      annotated: text.annotated,
-      path: rel,
-    };
+    const entry = entryOf(text, rel);
     index.texts = [entry, ...index.texts.filter((t) => t.id !== text.id)];
     return entry;
+  }
+
+  /** Existing text changed (AI steps): file rewritten, index entry updated in place. */
+  updateText(text: TextFile, rel: string, index: TextIndex) {
+    this.write(rel, TextFileSchema.parse(text));
+    const i = index.texts.findIndex((t) => t.id === text.id);
+    if (i >= 0) index.texts[i] = entryOf(text, rel);
+  }
+
+  loadText(rel: string): TextFile {
+    if (!/^texts\/\d{4}-\d{2}-\d{2}\/[a-f0-9]+\.json$/.test(rel)) throw new Error(`Unexpected text path: ${rel}`);
+    return TextFileSchema.parse(JSON.parse(fs.readFileSync(this.file(rel), 'utf8')));
+  }
+
+  pending(): Pending {
+    return this.read('state/pending.json', PendingSchema, { version: 1, items: [] });
+  }
+
+  savePending(p: Pending) {
+    this.write('state/pending.json', p);
   }
 
   saveIndex(index: TextIndex) {

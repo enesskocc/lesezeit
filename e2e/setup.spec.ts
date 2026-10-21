@@ -17,14 +17,22 @@ const textFile = {
   version: 1, id: 'a1b2c3d4e5', kind: 'news', date: '2026-10-21', source: 'test', sourceName: 'Testquelle',
   url: 'https://example.de/testtext', title: 'Ein erfundener Testtext', fetchedAt: '2026-10-21T03:30:00Z', wordCount: 20,
   paragraphs: ['Die Stadt plant mehr Busse am Abend.', 'Viele Pendler hatten sich beschwert.'],
-  sentences: [{ p: 0, t: 'Die Stadt plant mehr Busse am Abend.' }, { p: 1, t: 'Viele Pendler hatten sich beschwert.' }],
-  heuristics, levelHeuristic: 'B2', annotated: false,
+  sentences: [
+    { p: 0, t: 'Die Stadt plant mehr Busse am Abend.', tr: 'Şehir akşamları daha fazla otobüs planlıyor.', notes: ['Basit ana cümle.'] },
+    { p: 1, t: 'Viele Pendler hatten sich beschwert.', tr: 'Birçok yolcu şikâyet etmişti.' },
+  ],
+  heuristics, levelHeuristic: 'B2', annotated: true, level: 'B2',
+  levelAi: { level: 'B2', confidence: 0.8, reasons_tr: 'Kısa cümleler, günlük konu.' },
 };
 const indexFile = {
   version: 1, updatedAt: '2026-10-21T03:35:00Z',
   texts: [{
     id: textFile.id, kind: 'news', date: textFile.date, source: 'test', sourceName: 'Testquelle', url: textFile.url,
-    title: textFile.title, wordCount: 20, levelHeuristic: 'B2', annotated: false, path: 'texts/2026-10-21/a1b2c3d4e5.json',
+    title: textFile.title, wordCount: 20, levelHeuristic: 'B2', level: 'B2', annotated: true, path: 'texts/2026-10-21/a1b2c3d4e5.json',
+  }, {
+    // A pool candidate the pipeline has not annotated: never listed.
+    id: 'b2b2b2b2b2', kind: 'news', date: '2026-10-21', source: 'test', sourceName: 'Testquelle', url: 'https://example.de/pool',
+    title: 'Pool-Kandidat ohne Anmerkungen', wordCount: 300, levelHeuristic: 'C1', annotated: false, path: 'texts/2026-10-21/b2b2b2b2b2.json',
   }],
 };
 
@@ -72,6 +80,26 @@ test('first launch → setup → text list → plain preview', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
 });
 
+test('only annotated texts are listed; tapping a sentence shows its Turkish translation', async ({ page }) => {
+  await mockGitHub(page);
+  await submitToken(page);
+  await expect(page.getByRole('link', { name: /Ein erfundener Testtext/ })).toBeVisible();
+  await expect(page.getByText('Pool-Kandidat ohne Anmerkungen')).toHaveCount(0);
+
+  await page.getByRole('link', { name: /Ein erfundener Testtext/ }).click();
+  await expect(page.getByTestId('level-reasons')).toContainText('Kısa cümleler');
+  await expect(page.getByText('Şehir akşamları daha fazla otobüs planlıyor.')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Die Stadt plant mehr Busse am Abend.' }).click();
+  await expect(page.getByText('Şehir akşamları daha fazla otobüs planlıyor.')).toBeVisible();
+  await expect(page.getByText('Basit ana cümle.')).toBeVisible();
+});
+
+test('before the first annotated text the list explains when it comes', async ({ page }) => {
+  await mockGitHub(page, { index: { status: 200, body: { ...indexFile, texts: [indexFile.texts[1]] } } });
+  await submitToken(page);
+  await expect(page.getByText(/Henüz hazır metin yok/)).toBeVisible();
+});
+
 test('level filter hides texts of other levels', async ({ page }) => {
   await mockGitHub(page);
   await submitToken(page);
@@ -83,7 +111,7 @@ test('level filter hides texts of other levels', async ({ page }) => {
 test('a data repo without texts yet shows a friendly empty state', async ({ page }) => {
   await mockGitHub(page, { index: { status: 404 } });
   await submitToken(page);
-  await expect(page.getByText(/Henüz metin yok/)).toBeVisible();
+  await expect(page.getByText(/Henüz hazır metin yok/)).toBeVisible();
 });
 
 test('invalid token shows a Turkish error and stays on setup', async ({ page }) => {
