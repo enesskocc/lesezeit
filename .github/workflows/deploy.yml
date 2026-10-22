@@ -29,6 +29,14 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps webkit
       - run: npm run test:e2e
+      # Traces of failed or flaky (retried) tests; Playwright keeps them only for failed attempts.
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main'
         with:

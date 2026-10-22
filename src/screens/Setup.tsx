@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DATA_OWNER, DATA_REPO } from '../config';
 import { clearKeys, DEFAULT_PREFS, getPrefs, saveKeys, setPrefs, type Settings } from '../lib/db';
@@ -61,6 +61,14 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
   const [gemini, setGemini] = useState(existing?.geminiKey ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Token just saved, waiting for App's live settings to contain it before leaving setup.
+  const [saved, setSaved] = useState<string | null>(null);
+
+  // Navigating right after the write raced App's live query: "/" rendered with the old (empty)
+  // settings and redirected back here (seen as flaky E2E on the slower CI runner, 2026-10-22).
+  useEffect(() => {
+    if (saved && existing?.githubToken === saved) navigate('/', { replace: true });
+  }, [saved, existing, navigate]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -74,10 +82,9 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
     try {
       await checkDataRepoAccess(githubToken);
       await saveKeys(githubToken, gemini.trim());
-      navigate('/', { replace: true });
+      setSaved(githubToken); // the effect above navigates once App sees it
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
       setBusy(false);
     }
   }
