@@ -1,5 +1,4 @@
-// FSRS scheduling (spec "Vocabulary trainer") on top of ts-fsrs, plus the exercise result → rating
-// mapping. Pure: no IndexedDB, so it runs in the node unit tests.
+// FSRS scheduling (spec "Vocabulary trainer") on top of ts-fsrs. Pure: no IndexedDB, so it runs in the node unit tests.
 import { createEmptyCard, fsrs, generatorParameters, type Card, type Grade, type State } from 'ts-fsrs';
 
 /** A ts-fsrs card with dates as ISO strings, so it survives IndexedDB and the JSON backup unchanged. */
@@ -62,25 +61,6 @@ export function phaseOf(f: FsrsCard): Phase {
 
 export function schedule(f: FsrsCard, now: Date, rating: Grade4): FsrsCard {
   return toStored(scheduler.next(toCard(f), now, rating as Grade).card);
-}
-
-export interface ExerciseResult {
-  correct: boolean;
-  hinted?: boolean; // used the hint ("ipucu")
-  partial?: boolean; // typo, or the right word with the wrong article
-  ms: number;
-}
-
-/** Answer slower than this counts as "slow" (Hard). Typing takes longer than tapping. */
-export const SLOW_MS = { choice: 10_000, typing: 20_000 } as const;
-const FAST_MS = { choice: 4_000, typing: 8_000 } as const;
-
-/** Spec: wrong = Again, slow or hinted = Hard, correct = Good, correct and fast on a mature card = Easy. */
-export function ratingFor(r: ExerciseResult, phase: Phase, input: keyof typeof SLOW_MS): Grade4 {
-  if (!r.correct) return 1;
-  if (r.hinted || r.partial || r.ms > SLOW_MS[input]) return 2;
-  if (phase === 'mature' && r.ms < FAST_MS[input]) return 4;
-  return 3;
 }
 
 export function dayStart(now: Date): Date {

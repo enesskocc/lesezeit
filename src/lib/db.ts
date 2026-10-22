@@ -23,11 +23,10 @@ export interface Prefs {
   lastText?: { date: string; id: string }; // for the "Okuma" tab
   newPerDay: number; // spec: new cards per day, default 15
   maxReviews: number; // spec: max reviews per day, default 150
-  sound: boolean; // spec: one toggle for all exercise audio
   sessionMinutes: number; // last chosen session length; 0 = "all due"
 }
 export const DEFAULT_PREFS: Prefs = {
-  id: 'main', guessMode: true, articleColors: false, ttsRate: 0.9, newPerDay: 15, maxReviews: 150, sound: true, sessionMinutes: 10,
+  id: 'main', guessMode: true, articleColors: false, ttsRate: 0.9, newPerDay: 15, maxReviews: 150, sessionMinutes: 10,
 };
 
 /** Known-ness per lemma (spec: per lemma, not per form). No row = "new". */

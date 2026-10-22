@@ -2,28 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { Answer } from '../components/vocab/common';
 import { Matching } from '../components/vocab/Matching';
-import { WordFamily } from '../components/vocab/WordFamily';
 import { db, getPrefs, type CardRow } from '../lib/db';
 import { recordReview, sessionExtras, todayCounts } from '../lib/review';
-import {
-  DRILLS, EXERCISE_LABEL, isRated, matchable, nextItem, recordItem, startSession,
-  type Context, type ExerciseKind, type Item, type SessionState,
-} from '../lib/session';
+import { isRated, matchable, nextItem, recordItem, startSession, type Context, type Item, type SessionState } from '../lib/session';
 import { stopSpeaking } from '../lib/speech';
 import { formatInterval } from '../lib/srs';
 
 interface Run {
   s: SessionState;
-  ctx: Omit<Context, 'cards'> & { cards: CardRow[] }; // full rows: the exercises need every field
+  ctx: Omit<Context, 'cards'> & { cards: CardRow[] }; // full rows: the card list after each round
 }
 
 const clock = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 
-/** Spec "Session composer": matching rounds for 5 / 10 / 20 minutes or "all due" — or a drill (matching or word family). */
+/** Spec "Session composer": matching rounds for 5 / 10 / 20 minutes or "all due" — or free practice (`?serbest=1`). */
 export function Session() {
   const [params] = useSearchParams();
-  const drillParam = params.get('alistirma') as ExerciseKind | null;
-  const drill = drillParam && DRILLS.includes(drillParam) ? drillParam : undefined;
+  const free = params.get('serbest') === '1';
   const minutes = Number(params.get('dk') ?? 10) || 0;
   const run = useRef<Run | null>(null);
   const [item, setItem] = useState<Item | null | undefined>(undefined); // undefined = loading
@@ -42,14 +37,14 @@ export function Session() {
       const now = Date.now();
       const s = startSession(
         {
-          minutes: drill ? 0 : minutes,
+          minutes: free ? 0 : minutes,
           newLeft: Math.max(0, prefs.newPerDay - today.newDone),
           reviewsLeft: Math.max(0, prefs.maxReviews - today.reviewsDone),
-          drill,
+          free,
         },
         now,
       );
-      const ctx = { cards, mwes: extras.mwes, known: extras.known, rand: Math.random };
+      const ctx = { cards, mwes: extras.mwes, rand: Math.random };
       if (cancelled) return;
       run.current = { s, ctx };
       const first = nextItem(s, ctx, now);
@@ -61,13 +56,13 @@ export function Session() {
       cancelled = true;
       stopSpeaking();
     };
-  }, [drill, minutes]);
+  }, [free, minutes]);
 
   useEffect(() => {
-    if (ended || drill || !minutes) return;
+    if (ended || free || !minutes) return;
     const t = setInterval(() => tick((n) => n + 1), 1000);
     return () => clearInterval(t);
-  }, [ended, drill, minutes]);
+  }, [ended, free, minutes]);
 
   const onDone = async (answers: Answer[]) => {
     const r = run.current;
@@ -91,11 +86,9 @@ export function Session() {
           if (card.fsrs.state === 0 && !r.s.introduced.has(card.id)) fresh++;
           if (card.fsrs.state === 2) reviews++;
         }
-        const updated = await recordReview(a.cardId, a.rating, item.kind, a.ms, !rated, now);
+        const updated = await recordReview(a.cardId, a.rating, 'match', a.ms, !rated, now);
         if (updated) r.ctx.cards = r.ctx.cards.map((c) => (c.id === updated.id ? updated : c));
       }
-      // No answers = the exercise could not be shown (word family without enough invented forms): skip the card.
-      if (!answers.length) for (const id of item.cardIds) results.set(id, true);
       recordItem(r.s, item, results, before);
       setStats((st) => ({
         answers: st.answers + answers.length,
@@ -134,7 +127,7 @@ export function Session() {
     return (
       <div data-testid="session-summary">
         <h1 className="mb-2 font-read text-[24px] font-semibold">{stats.answers ? 'Oturum bitti' : 'Şu an tekrar yok'}</h1>
-        {!stats.answers && !drill && r.ctx.cards.filter(matchable).length < 5 && (
+        {!stats.answers && !free && r.ctx.cards.filter(matchable).length < 5 && (
           <p className="text-sm text-muted">Eşleştirme için en az 5 kart gerekli. Okurken kelime ekle.</p>
         )}
         {stats.answers > 0 && (
@@ -151,22 +144,16 @@ export function Session() {
     );
   }
 
-  const card = r.ctx.cards.find((c) => c.id === item.cardIds[0]);
-  const left = minutes && !drill ? Math.max(0, minutes * 60_000 - (Date.now() - r.s.startedAt)) : null;
-  const exercise =
-    item.kind === 'match' ? (
-      <Matching pairs={item.pairs!} mode={item.mode!} onDone={onDone} />
-    ) : card ? (
-      <WordFamily card={card} known={r.ctx.known} onDone={onDone} />
-    ) : null;
+  const left = minutes && !free ? Math.max(0, minutes * 60_000 - (Date.now() - r.s.startedAt)) : null;
+  const exercise = <Matching pairs={item.pairs} mode={item.mode} onDone={onDone} />;
 
   return (
     <div data-testid="session">
       <div className="mb-3 flex items-center gap-2.5">
         <span className="label flex-1">
-          {EXERCISE_LABEL[item.kind]}
+          Eşleştirme
           {item.repeat && ' · tekrar'}
-          {drill && ' · alıştırma'}
+          {free && ' · serbest'}
         </span>
         {left !== null && (
           <span className="text-sm text-muted tabular-nums" aria-label="Kalan süre">

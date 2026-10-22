@@ -139,7 +139,7 @@ test('a matching drill on new cards is practice; a wrong pair comes back once at
   await setupAndOpen(page);
   await addCards(page, Object.keys(CARDS));
   await page.getByRole('link', { name: 'Kelimeler' }).click();
-  await page.getByRole('button', { name: 'Eşleştirme' }).click();
+  await page.getByRole('button', { name: 'Serbest eşleştirme' }).click();
   // One wrong pair on purpose: "das Haus" ↔ "yarın".
   const haus = page.locator('[data-side="l"]').filter({ hasText: /^das Haus$/ });
   await haus.click();
@@ -154,7 +154,7 @@ test('a matching drill on new cards is practice; a wrong pair comes back once at
   await expect(page.getByTestId('feedback')).toContainText('1 hata');
   await page.getByRole('button', { name: 'Devam' }).click();
   // The wrong card comes back in one more matching round.
-  await expect(page.getByText('Eşleştirme · tekrar · alıştırma')).toBeVisible();
+  await expect(page.getByText('Eşleştirme · tekrar · serbest')).toBeVisible();
   await matchAll(page);
   await expect(page.getByTestId('session-summary')).toContainText('7 cevap · %86 doğru');
 
@@ -185,7 +185,7 @@ test('matching: tapping a tile is silent; the 🔊 button reads the German word'
   await setupAndOpen(page);
   await addCards(page, Object.keys(CARDS));
   await page.getByRole('link', { name: 'Kelimeler' }).click();
-  await page.getByRole('button', { name: 'Eşleştirme' }).click();
+  await page.getByRole('button', { name: 'Serbest eşleştirme' }).click();
   const spoken = () => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
 
   await page.locator('[data-side="l"]').filter({ hasText: /^das Haus$/ }).click();
@@ -195,14 +195,9 @@ test('matching: tapping a tile is silent; the 🔊 button reads the German word'
   await page.getByRole('button', { name: 'anfangen: dinle' }).click();
   expect(await spoken()).toEqual(['anfangen']);
   await expect(page.locator('[data-side="l"]').filter({ hasText: /^anfangen$/ })).toHaveAttribute('aria-pressed', 'false');
-
-  // Sound off: no 🔊 buttons at all.
-  await page.getByRole('button', { name: 'Bitir' }).click();
-  await page.getByRole('link', { name: 'Kelimelere dön' }).click();
-  await page.getByRole('button', { name: /Ses: açık/ }).click();
-  await page.getByRole('button', { name: 'Eşleştirme' }).click();
-  await expect(page.getByTestId('ex-match')).toBeVisible();
-  await expect(page.getByTestId('match-speak')).toHaveCount(0);
+  // A matched tile keeps its 🔊 (sound is only ever played on request, there is no sound toggle).
+  await page.getByRole('button', { name: 'das Haus: dinle' }).click();
+  expect(await spoken()).toEqual(['anfangen', 'das Haus']);
 });
 
 test('card list → detail with its sentence and a link back to the text; delete can be undone', async ({ page }) => {

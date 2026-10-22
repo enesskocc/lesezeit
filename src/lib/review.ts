@@ -40,11 +40,8 @@ export async function todayCounts(now = new Date()): Promise<{ newDone: number; 
   return { newDone: newCards.size, reviewsDone: rows.filter((r) => !r.practice && r.stateBefore === 2).length };
 }
 
-/**
- * What a session needs besides the cards: expressions from downloaded texts (matching fillers,
- * Enes 2026-10-21) and every real word we know of (never offered as an invented family form).
- */
-export async function sessionExtras(cards: CardRow[]): Promise<{ mwes: MweLike[]; known: Set<string> }> {
+/** Expressions from downloaded texts that are not cards yet: matching fillers (Enes, 2026-10-21). */
+export async function sessionExtras(cards: CardRow[]): Promise<{ mwes: MweLike[] }> {
   const saved = new Set(cards.map((c) => c.id));
   const mwes: MweLike[] = [];
   const seen = new Set<string>();
@@ -56,12 +53,7 @@ export async function sessionExtras(cards: CardRow[]): Promise<{ mwes: MweLike[]
       mwes.push({ de: m.de, tr: m.tr, kind: m.kind });
     }
   });
-  const known = new Set<string>();
-  for (const c of cards) {
-    known.add(c.lemma);
-    for (const w of c.entry?.fam ?? []) known.add(w);
-  }
-  return { mwes, known };
+  return { mwes };
 }
 
 export interface DeletedCard {

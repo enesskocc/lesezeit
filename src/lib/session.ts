@@ -1,32 +1,24 @@
 // Session composer (spec "Session composer"): which cards come next. Pure: the screen passes the
 // current cards and the time, so it runs in the node unit tests.
-import {
-  buildMatch, familyOf, MATCH_MAX, modesFor, pairFor,
-  type CardLike, type MatchMode, type MweLike, type Pair, type Rand,
-} from './exercises.ts';
+import { buildMatch, MATCH_MAX, modesFor, pairFor, type CardLike, type MatchMode, type MweLike, type Pair, type Rand } from './exercises.ts';
 import type { CardRow } from './db';
 
-// Enes, 2026-10-22: vocabulary practice is matching only — no flashcard, cloze, artikel or
-// production; new words go straight into matching rounds. The word family stays as its own drill.
-// (Listen & type was dropped on 2026-10-21.)
-export type ExerciseKind = 'match' | 'family';
-export const EXERCISE_LABEL: Record<ExerciseKind, string> = { match: 'Eşleştirme', family: 'Kelime ailesi' };
-export const DRILLS: ExerciseKind[] = ['match', 'family'];
+// Enes, 2026-10-22: vocabulary practice is matching only — no flashcard, cloze, artikel,
+// production, word family or listen & type. New words go straight into matching rounds.
 
 export type SessionCard = CardLike & Pick<CardRow, 'fsrs' | 'due' | 'createdAt'>;
 
 export interface Context {
   cards: SessionCard[];
   mwes: MweLike[]; // expressions from downloaded texts (matching fillers)
-  known: ReadonlySet<string>; // real words: never offered as invented word-family forms
   rand: Rand;
 }
 
+/** One matching round. */
 export interface Item {
-  kind: ExerciseKind;
-  cardIds: string[]; // cards this exercise answers for
-  pairs?: Pair[];
-  mode?: MatchMode;
+  cardIds: string[]; // rated cards (the pairs that have a cardId)
+  pairs: Pair[];
+  mode: MatchMode;
   repeat?: boolean; // the end-of-session repeat of a wrong card
 }
 
@@ -34,7 +26,7 @@ export interface SessionConfig {
   minutes: number; // 0 = "all due"
   newLeft: number; // today's remaining new-card limit
   reviewsLeft: number; // today's remaining review limit
-  drill?: ExerciseKind; // practise one exercise type (Kelimeler → Alıştırma)
+  free?: boolean; // free practice (Kelimeler → Serbest eşleştirme): any cards, schedule changes only for due ones
 }
 
 export interface SessionState {
@@ -49,8 +41,7 @@ export interface SessionState {
 
 /** A learning card waits at most this long for its next step; Anki's "learn ahead" limit. */
 export const LEARN_AHEAD_MS = 20 * 60_000;
-export const DRILL_ITEMS = 8;
-const DRILL_MATCH_ROUNDS = 2;
+const FREE_ROUNDS = 2;
 
 export function startSession(config: SessionConfig, now: number): SessionState {
   return { config, startedAt: now, count: 0, introduced: new Set(), reviewed: 0, last: new Map(), repeated: new Set() };
@@ -58,10 +49,6 @@ export function startSession(config: SessionConfig, now: number): SessionState {
 
 /** A card can take part in matching (it has a Turkish meaning, a definition, a synonym or an expression split). */
 export const matchable = (card: CardLike): boolean => modesFor(card).length > 0;
-
-export function eligible(card: SessionCard, kind: ExerciseKind, ctx: Context): boolean {
-  return kind === 'match' ? matchable(card) : !!familyOf(card, 0, ctx.known);
-}
 
 /**
  * Matching modes to try for a round, best first: the first card's expression mode, then the others
@@ -89,37 +76,20 @@ function round(cands: SessionCard[], ctx: Context, repeat = false): Item | null 
   for (const mode of matchModes(first)) {
     const rated = cands.filter((c) => pairFor(c, mode)).slice(0, MATCH_MAX);
     const pairs = buildMatch(mode, rated, ctx.cards.filter((c) => !rated.includes(c)), ctx.mwes, ctx.rand);
-    if (pairs) {
-      return { kind: 'match', cardIds: pairs.flatMap((p) => (p.cardId ? [p.cardId] : [])), pairs, mode, ...(repeat ? { repeat } : {}) };
-    }
+    if (pairs) return { cardIds: pairs.flatMap((p) => (p.cardId ? [p.cardId] : [])), pairs, mode, ...(repeat ? { repeat } : {}) };
   }
   return null;
 }
 
+/** At the end, every card that was wrong in its last round comes back once in one more round. */
 function repeatWrong(s: SessionState, ctx: Context): Item | null {
   for (const [id, ok] of s.last) {
     if (ok || s.repeated.has(id)) continue;
     const card = ctx.cards.find((c) => c.id === id);
-    if (!card) continue;
-    if (s.config.drill === 'family') return { kind: 'family', cardIds: [id], repeat: true };
-    const item = round([card], ctx, true);
+    const item = card && round([card], ctx, true);
     if (item) return item;
   }
   return null;
-}
-
-function nextDrill(s: SessionState, ctx: Context): Item | null {
-  const kind = s.config.drill!;
-  if (s.count >= (kind === 'match' ? DRILL_MATCH_ROUNDS : DRILL_ITEMS)) return repeatWrong(s, ctx);
-  // Due cards first, then the ones due soonest. Cards that are not due are practised without
-  // changing their schedule (see isRated).
-  const pool = ctx.cards.filter((c) => !s.last.has(c.id) && eligible(c, kind, ctx)).sort(byDue);
-  if (kind === 'family') return pool[0] ? { kind, cardIds: [pool[0].id] } : repeatWrong(s, ctx);
-  const modes = (['tr', 'def', 'syn', 'nv', 'vp'] as const).filter((m) => buildMatch(m, pool, [], ctx.mwes, ctx.rand));
-  if (!modes.length) return repeatWrong(s, ctx);
-  const mode = modes[s.count % modes.length]!;
-  const pairs = buildMatch(mode, pool, [], ctx.mwes, ctx.rand)!;
-  return { kind, cardIds: pairs.flatMap((p) => (p.cardId ? [p.cardId] : [])), pairs, mode };
 }
 
 /**
@@ -128,10 +98,15 @@ function nextDrill(s: SessionState, ctx: Context): Item | null {
  * session (FSRS steps 5 min → 10 min → days) before it waits for tomorrow.
  */
 export function nextItem(s: SessionState, ctx: Context, now: number): Item | null {
-  if (s.config.drill) return nextDrill(s, ctx);
+  const cards = ctx.cards.filter(matchable);
+  if (s.config.free) {
+    if (s.count >= FREE_ROUNDS) return repeatWrong(s, ctx);
+    // Due cards first, then the ones due soonest; cards that are not due are practice (see isRated).
+    const pool = cards.filter((c) => !s.last.has(c.id)).sort(byDue);
+    return round(pool, ctx) ?? repeatWrong(s, ctx);
+  }
   const timeUp = s.config.minutes > 0 && now - s.startedAt >= s.config.minutes * 60_000;
   if (!timeUp) {
-    const cards = ctx.cards.filter(matchable);
     const learning = cards.filter((c) => isLearning(c) && c.due <= now).sort(byDue);
     const reviews = cards
       .filter((c) => c.fsrs.state === 2 && c.due <= now)
@@ -158,19 +133,19 @@ export function nextItem(s: SessionState, ctx: Context, now: number): Item | nul
 }
 
 /**
- * Drill answers on new cards or cards that are not due are practice only: the schedule stays as it
- * is (a new card keeps its learning start for a real session). Due reviews in a drill still respect
- * today's review limit; `pending` = reviews already rated in this same answer.
+ * Free practice on new cards or cards that are not due is practice only: the schedule stays as it is
+ * (a new card keeps its learning start for a real session). Due reviews still respect today's review
+ * limit; `pending` = reviews already rated in this same round.
  */
 export function isRated(s: SessionState, card: Pick<SessionCard, 'due' | 'fsrs'>, now: number, pending = 0): boolean {
-  if (!s.config.drill) return true;
+  if (!s.config.free) return true;
   if (card.fsrs.state === 0 || card.due > now) return false;
   return card.fsrs.state !== 2 || s.reviewed + pending < s.config.reviewsLeft;
 }
 
 /**
- * Updates the session after an answer. `before` = the FSRS state before this answer of each card
- * whose schedule changed (practice answers are left out, so they count neither as new nor as review).
+ * Updates the session after a round. `before` = the FSRS state before this round of each card whose
+ * schedule changed (practice answers are left out, so they count neither as new nor as review).
  */
 export function recordItem(s: SessionState, item: Item, results: Map<string, boolean>, before: Map<string, SessionCard['fsrs']['state']>): void {
   s.count++;

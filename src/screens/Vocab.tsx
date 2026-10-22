@@ -2,9 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db, DEFAULT_PREFS, getPrefs, setPrefs, type CardRow } from '../lib/db';
-import { buildMatch, fold, MATCH_MIN } from '../lib/exercises';
+import { fold, MATCH_MIN } from '../lib/exercises';
 import { restoreCard, todayCounts, type DeletedCard } from '../lib/review';
-import { DRILLS, dueCounts, eligible, EXERCISE_LABEL, matchable, type Context } from '../lib/session';
+import { dueCounts, matchable } from '../lib/session';
 import { formatInterval, phaseOf, type Phase } from '../lib/srs';
 
 const LENGTHS: [number, string][] = [
@@ -51,20 +51,12 @@ export function Vocab() {
   const mature = cards.filter((c) => phaseOf(c.fsrs) === 'mature').length;
   const nextDue = cards.reduce((m, c) => (c.due > now ? Math.min(m, c.due) : m), Infinity);
   const tooFew = cards.filter(matchable).length < MATCH_MIN; // a matching round needs 5 pairs
-  const ctx: Context = { cards, mwes: [], known: new Set(), rand: Math.random };
-  const canDrill = (k: (typeof DRILLS)[number]) =>
-    k === 'match' ? (['tr', 'def', 'syn', 'nv', 'vp'] as const).some((m) => buildMatch(m, cards, [])) : cards.some((c) => eligible(c, k, ctx));
   const q = fold(query);
   const shown = q ? sorted.filter((c) => fold(`${c.display} ${c.meaning_tr}`).includes(q)) : sorted;
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
-        <h1 className="font-read text-[26px] font-semibold">Kelimeler</h1>
-        <button className="btn py-1.5" aria-pressed={prefs.sound} onClick={() => void setPrefs({ sound: !prefs.sound })}>
-          {prefs.sound ? '🔊' : '🔇'} Ses: {prefs.sound ? 'açık' : 'kapalı'}
-        </button>
-      </div>
+      <h1 className="mb-3 font-read text-[26px] font-semibold">Kelimeler</h1>
 
       {cards.length === 0 ? (
         <p className="card text-muted">
@@ -121,15 +113,10 @@ export function Vocab() {
           </div>
 
           <div className="mt-3">
-            <div className="label mb-2">Alıştırma (tek tür)</div>
-            <div className="flex flex-wrap gap-2">
-              {DRILLS.map((k) => (
-                <button key={k} className="btn" disabled={!canDrill(k)} onClick={() => navigate(`/kelimeler/oturum?alistirma=${k}`)}>
-                  {EXERCISE_LABEL[k]}
-                </button>
-              ))}
-            </div>
-            <p className="mt-1.5 text-xs text-muted">Yeni ya da vadesi gelmemiş kartlarda sonuç takvimi değiştirmez.</p>
+            <button className="btn w-full" disabled={tooFew} onClick={() => navigate('/kelimeler/oturum?serbest=1')}>
+              Serbest eşleştirme
+            </button>
+            <p className="mt-1.5 text-center text-xs text-muted">İstediğin zaman, tüm kartlarla. Yeni ya da vadesi gelmemiş kartların takvimi değişmez.</p>
           </div>
 
           <input

@@ -1,13 +1,13 @@
-// Milestone 6 logic: FSRS mapping, matching, word family and the session composer. Synthetic cards only.
+// Milestone 6 logic: FSRS, matching and the session composer (matching only, Enes 2026-10-22). Synthetic cards only.
 //   npm run test:unit
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  buildMatch, familyOf, membersOf, splitMwe, tokenSpans,
+  buildMatch, splitMwe, tokenSpans,
   type CardLike,
 } from './exercises.ts';
 import { dueCounts, isRated, nextItem, recordItem, startSession, type Context, type SessionCard } from './session.ts';
-import { dayStart, formatInterval, lemmaOfDisplay, newFsrs, phaseOf, ratingFor, schedule, type Grade4 } from './srs.ts';
+import { dayStart, formatInterval, lemmaOfDisplay, newFsrs, phaseOf, schedule, type Grade4 } from './srs.ts';
 
 const T0 = Date.parse('2026-10-22T08:00:00Z');
 let seed = 1;
@@ -24,16 +24,6 @@ function card(id: string, over: Partial<SessionCard> = {}): SessionCard {
 }
 
 // ---------------------------------------------------------------- srs
-
-test('rating: wrong = Again, slow or hinted = Hard, correct = Good, fast on a mature card = Easy', () => {
-  assert.equal(ratingFor({ correct: false, ms: 1000 }, 'young', 'choice'), 1);
-  assert.equal(ratingFor({ correct: true, ms: 15_000 }, 'young', 'choice'), 2);
-  assert.equal(ratingFor({ correct: true, hinted: true, ms: 1000 }, 'young', 'typing'), 2);
-  assert.equal(ratingFor({ correct: true, partial: true, ms: 1000 }, 'mature', 'typing'), 2);
-  assert.equal(ratingFor({ correct: true, ms: 3000 }, 'young', 'choice'), 3);
-  assert.equal(ratingFor({ correct: true, ms: 3000 }, 'mature', 'choice'), 4);
-  assert.equal(ratingFor({ correct: true, ms: 12_000 }, 'mature', 'typing'), 3, 'typing gets more time');
-});
 
 test('FSRS: a new card goes through the 5 min / 10 min steps, then days; Again brings it back fast', () => {
   const now = new Date(T0);
@@ -92,30 +82,9 @@ test('matching: 5–6 unique pairs, rated cards first, expression fillers for No
   assert.deepEqual(nv[0], { id: nvv.id, cardId: nvv.id, left: 'eine Entscheidung', right: 'treffen', rightLang: 'de' });
 });
 
-test('word family: stem + known suffixes only; distractors are invented, never real family words', () => {
-  const c = card('entscheiden', {
-    entry: { w: 'entscheiden', p: 'v', fam: ['entscheidbar', 'unentschieden', 'Entscheid', 'Entscheider', 'Entscheidung', 'Entscheidungsträger'] },
-  });
-  assert.deepEqual(membersOf(c).map((m) => m.word), ['entscheiden', 'entscheidbar', 'Entscheid', 'Entscheider', 'Entscheidung']);
-  for (let pick = 0; pick < 3; pick++) {
-    const f = familyOf(c, pick, new Set(), rand)!;
-    assert.equal(f.options.length, 4);
-    assert.ok(f.options.includes(f.target.word));
-    const real = new Set(membersOf(c).map((m) => m.word.toLowerCase()));
-    assert.equal(f.options.filter((o) => real.has(o.toLowerCase())).length, 1, `only the answer is real: ${f.options}`);
-  }
-  const ung = familyOf(c, 2, new Set(), rand)!; // targets: entscheidbar, Entscheider, Entscheidung
-  assert.equal(ung.target.word, 'Entscheidung');
-  assert.equal(ung.prompt, 'die …');
-  assert.match(ung.target.suffix.rule, /-ung .*die/);
-  assert.ok(ung.options.every((o) => /^Entscheid/.test(o)), 'all options are nouns from the same stem');
-  // Compounds ("hausbacken") are not family members, so "Haus" gets no family exercise.
-  assert.equal(familyOf(card('Haus', { entry: { w: 'Haus', p: 'n', fam: ['hausbacken', 'hauseigen'] } })), null);
-});
-
 // ---------------------------------------------------------------- session
 
-const ctxOf = (cards: SessionCard[]): Context => ({ cards, mwes: [], known: new Set(), rand });
+const ctxOf = (cards: SessionCard[]): Context => ({ cards, mwes: [], rand });
 
 /** Answers an item like the session screen does: each card gets `rating` (or `rating(id)`). */
 function answer(cards: SessionCard[], item: ReturnType<typeof nextItem>, rating: Grade4 | ((id: string) => Grade4), now: number) {
@@ -141,7 +110,7 @@ test('a session is matching rounds only: a new card meets three rounds, then wai
   for (let n = 0; n < 50; n++) {
     const item = nextItem(s, ctx, now);
     if (!item) break;
-    for (const id of item.cardIds) kinds.set(id, [...(kinds.get(id) ?? []), item.kind]);
+    for (const id of item.cardIds) kinds.set(id, [...(kinds.get(id) ?? []), 'match']);
     const { before, results } = answer(cards, item, 3, now);
     recordItem(s, item, results, before);
     now += 30_000;
@@ -197,29 +166,27 @@ test('time limit ends the session; a wrong card is asked once more at the end', 
   assert.ok(seen.filter((x) => !x.repeat).every((x) => x.at < T0 + 5 * 60_000), 'nothing new starts after 5 minutes');
 });
 
-test('drill: only due, already started cards are rated; new or not-due cards are practice', () => {
-  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'family' }, T0);
+test('free practice: only due, already started cards are rated; new or not-due cards are practice', () => {
+  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, free: true }, T0);
   const review = { ...newFsrs(new Date(T0)), state: 2 as const };
   assert.equal(isRated(s, { fsrs: review, due: T0 - 1 }, T0), true);
   assert.equal(isRated(s, { fsrs: review, due: T0 + 1 }, T0), false);
   assert.equal(isRated(s, { fsrs: newFsrs(new Date(T0)), due: T0 - 1 }, T0), false, 'new card keeps its learning start');
   assert.equal(isRated(startSession({ minutes: 10, newLeft: 15, reviewsLeft: 150 }, T0), { fsrs: newFsrs(), due: T0 }, T0), true);
-  // Drills respect today's review limit too.
-  const full = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 2, drill: 'family' }, T0);
+  // Free practice respects today's review limit too.
+  const full = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 2, free: true }, T0);
   assert.equal(isRated(full, { fsrs: review, due: T0 - 1 }, T0, 1), true);
   assert.equal(isRated(full, { fsrs: review, due: T0 - 1 }, T0, 2), false);
 });
 
-test('a matching drill repeats a wrong card with another matching round', () => {
+test('free practice repeats a wrong card with another matching round', () => {
   const cards = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Eps', 'Zeta'].map((x) => card(x));
   const ctx = ctxOf(cards);
-  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'match' }, T0);
+  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, free: true }, T0);
   const round = nextItem(s, ctx, T0)!; // all six cards in one round, so the drill moves on to its repeats
-  assert.equal(round.kind, 'match');
   recordItem(s, round, new Map(round.cardIds.map((id) => [id, id !== 'w:alpha'])), new Map());
   const repeat = nextItem(s, ctx, T0)!;
   assert.equal(repeat.repeat, true);
-  assert.equal(repeat.kind, 'match');
   assert.deepEqual(repeat.cardIds, ['w:alpha']);
   assert.ok(repeat.pairs!.length >= 5);
   recordItem(s, repeat, new Map([['w:alpha', true]]), new Map());
@@ -235,7 +202,6 @@ test('matching falls back to another mode when the rotated one has fewer than 5 
   const cards = [rich, ...['Beta', 'Gamma', 'Delta', 'Eps', 'Zeta'].map((x) => card(x))];
   const s = startSession({ minutes: 10, newLeft: 0, reviewsLeft: 150 }, T0);
   const item = nextItem(s, ctxOf(cards), T0)!;
-  assert.equal(item.kind, 'match');
   assert.equal(item.mode, 'tr');
   assert.deepEqual(item.cardIds, ['w:alpha']);
 });
@@ -246,20 +212,6 @@ test('fewer than 5 matchable cards: no round; cards without any pair are left ou
   const bare = card('Leer', { meaning_tr: '' });
   assert.equal(dueCounts([...four, bare], T0, 15, 150).fresh, 4, 'a card with nothing to match is not counted');
   const item = nextItem(startSession({ minutes: 10, newLeft: 15, reviewsLeft: 150 }, T0), ctxOf([...four, card('E'), bare]), T0)!;
-  assert.equal(item.kind, 'match');
+  assert.ok(item.pairs.length >= 5);
   assert.ok(!item.cardIds.includes('w:leer'));
-});
-
-test('word family drill: one card per item, a wrong card comes back once with the same exercise', () => {
-  const fam = { w: 'entscheiden', p: 'v' as const, fam: ['entscheidbar', 'Entscheider', 'Entscheidung'] };
-  const cards = [card('entscheiden', { entry: fam }), card('Haus')];
-  const ctx = ctxOf(cards);
-  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'family' }, T0);
-  const first = nextItem(s, ctx, T0)!;
-  assert.deepEqual([first.kind, first.cardIds], ['family', ['w:entscheiden']], 'only cards with a family');
-  recordItem(s, first, new Map([['w:entscheiden', false]]), new Map());
-  const again = nextItem(s, ctx, T0)!;
-  assert.deepEqual([again.kind, again.repeat], ['family', true]);
-  recordItem(s, again, new Map([['w:entscheiden', true]]), new Map());
-  assert.equal(nextItem(s, ctx, T0), null);
 });

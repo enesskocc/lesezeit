@@ -28,7 +28,7 @@ function LimitField({ label, value, max, onSave }: { label: string; value: numbe
   );
 }
 
-/** Spec "Daily limits (settings)" and the one sound toggle for all exercise audio. */
+/** Spec "Daily limits (settings)". */
 function VocabSettings() {
   const prefs = useLiveQuery(getPrefs, [], DEFAULT_PREFS);
   return (
@@ -36,10 +36,6 @@ function VocabSettings() {
       <span className="label">Kelime çalışması</span>
       <LimitField label="Günde yeni kart" value={prefs.newPerDay} max={100} onSave={(n) => void setPrefs({ newPerDay: n })} />
       <LimitField label="Günde en fazla tekrar" value={prefs.maxReviews} max={999} onSave={(n) => void setPrefs({ maxReviews: n })} />
-      <label className="flex items-center justify-between gap-3">
-        <span>Alıştırmalarda ses</span>
-        <input type="checkbox" className="size-5 accent-[var(--accent)]" checked={prefs.sound} onChange={(e) => void setPrefs({ sound: e.target.checked })} />
-      </label>
     </section>
   );
 }
