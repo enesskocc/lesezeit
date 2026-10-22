@@ -165,19 +165,22 @@ test('a matching drill on new cards is practice; a wrong pair comes back once at
 });
 
 test('matching: tapping a tile is silent; the 🔊 button reads the German word', async ({ page }) => {
-  // The WebKit build of Playwright has no speechSynthesis: a stub records what would be spoken.
+  // A stub records what would be spoken. Playwright's WebKit has no speechSynthesis on Windows but a
+  // real one on Linux (CI), whose read-only getter ignores plain assignment — so define own properties.
   await page.addInitScript(() => {
     const spoken: string[] = [];
-    Object.assign(window, {
-      __spoken: spoken,
-      SpeechSynthesisUtterance: class {
+    const define = (name: string, value: unknown) => Object.defineProperty(window, name, { value, configurable: true, writable: true });
+    define('__spoken', spoken);
+    define(
+      'SpeechSynthesisUtterance',
+      class {
         text: string;
         constructor(text: string) {
           this.text = text;
         }
       },
-      speechSynthesis: { getVoices: () => [], cancel: () => {}, speak: (u: { text: string }) => spoken.push(u.text) },
-    });
+    );
+    define('speechSynthesis', { getVoices: () => [], cancel: () => {}, speak: (u: { text: string }) => spoken.push(u.text) });
   });
   await setupAndOpen(page);
   await addCards(page, Object.keys(CARDS));
