@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { MATCH_MODE_LABEL, shuffle, type MatchMode, type Pair } from '../../lib/exercises';
-import { Feedback, useElapsed, useSay, type OnDone } from './common';
+import { Feedback, useElapsed, useSound, type OnDone } from './common';
 
 type Side = 'l' | 'r';
 
 const clock = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 
 /**
- * Spec "Matching": 5–6 pairs, tap to match, timed. Every German tile speaks when selected. A pair
- * that was matched wrongly at least once counts as wrong (Again) for its card.
+ * Spec "Matching": 5–6 pairs, tap to match, timed. Tapping a tile only selects it; a German tile has
+ * its own 🔊 button for the pronunciation (Enes 2026-10-22: no sound on select). A pair that was
+ * matched wrongly at least once counts as wrong (Again) for its card.
  */
 export function Matching({ pairs, mode, onDone }: { pairs: Pair[]; mode: MatchMode; onDone: OnDone }) {
-  const say = useSay();
+  const { on: sound, say } = useSound();
   const elapsed = useElapsed();
   const [order] = useState(() => ({ l: shuffle(pairs), r: shuffle(pairs) }));
   const [selected, setSelected] = useState<{ side: Side; id: string } | null>(null);
@@ -31,7 +32,6 @@ export function Matching({ pairs, mode, onDone }: { pairs: Pair[]; mode: MatchMo
 
   const tap = (side: Side, p: Pair) => {
     if (matched.has(p.id) || wrong) return;
-    if (side === 'l' || p.rightLang === 'de') say(side === 'l' ? p.left : p.right);
     if (!selected || selected.side === side) {
       setSelected({ side, id: p.id });
       return;
@@ -55,20 +55,37 @@ export function Matching({ pairs, mode, onDone }: { pairs: Pair[]; mode: MatchMo
     const isSel = selected?.side === side && selected.id === p.id;
     const isWrong = wrong?.[side] === p.id;
     const german = side === 'l' || p.rightLang === 'de';
+    const text = side === 'l' ? p.left : p.right;
+    const speaker = german && sound;
     return (
-      <button
-        key={p.id}
-        lang={german ? 'de' : 'tr'}
-        disabled={done}
-        aria-pressed={isSel}
-        data-side={side}
-        onClick={() => tap(side, p)}
-        className={`min-h-[52px] rounded-[10px] border-2 bg-surface px-2 py-2 text-left text-[15px] leading-snug ${german ? 'font-read' : ''} ${
-          done ? 'border-good text-good opacity-60' : isWrong ? 'border-bad bg-bad/10' : isSel ? 'border-accent bg-accent-soft' : 'border-line'
-        }`}
-      >
-        {side === 'l' ? p.left : p.right}
-      </button>
+      <div key={p.id} className="relative">
+        <button
+          lang={german ? 'de' : 'tr'}
+          disabled={done}
+          aria-pressed={isSel}
+          data-side={side}
+          onClick={() => tap(side, p)}
+          className={`min-h-[52px] w-full rounded-[10px] border-2 bg-surface py-2 pl-2 text-left text-[15px] leading-snug ${
+            speaker ? 'pr-10' : 'pr-2'
+          } ${german ? 'font-read' : ''} ${
+            done ? 'border-good text-good opacity-60' : isWrong ? 'border-bad bg-bad/10' : isSel ? 'border-accent bg-accent-soft' : 'border-line'
+          }`}
+        >
+          {text}
+        </button>
+        {speaker && (
+          // A sibling, not a child: a button inside a button is invalid and would also select the tile.
+          <button
+            type="button"
+            aria-label={`${text}: dinle`}
+            data-testid="match-speak"
+            onClick={() => say(text)}
+            className="absolute top-1/2 right-1 flex size-9 -translate-y-1/2 items-center justify-center rounded-lg text-[17px] text-muted"
+          >
+            🔊
+          </button>
+        )}
+      </div>
     );
   };
 

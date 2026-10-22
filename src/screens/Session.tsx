@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArtikelPlural } from '../components/vocab/ArtikelPlural';
-import { Cloze } from '../components/vocab/Cloze';
 import type { Answer } from '../components/vocab/common';
-import { Flashcard } from '../components/vocab/Flashcard';
 import { Matching } from '../components/vocab/Matching';
-import { Production } from '../components/vocab/Production';
 import { WordFamily } from '../components/vocab/WordFamily';
 import { db, getPrefs, type CardRow } from '../lib/db';
 import { recordReview, sessionExtras, todayCounts } from '../lib/review';
 import {
-  DRILLS, EXERCISE_LABEL, isRated, nextItem, recordItem, startSession,
+  DRILLS, EXERCISE_LABEL, isRated, matchable, nextItem, recordItem, startSession,
   type Context, type ExerciseKind, type Item, type SessionState,
 } from '../lib/session';
 import { stopSpeaking } from '../lib/speech';
@@ -23,7 +19,7 @@ interface Run {
 
 const clock = (ms: number) => `${Math.floor(ms / 60_000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}`;
 
-/** Spec "Session composer": a mixed session of 5 / 10 / 20 minutes or "all due" — or a drill of one exercise type. */
+/** Spec "Session composer": matching rounds for 5 / 10 / 20 minutes or "all due" — or a drill (matching or word family). */
 export function Session() {
   const [params] = useSearchParams();
   const drillParam = params.get('alistirma') as ExerciseKind | null;
@@ -87,8 +83,7 @@ export function Session() {
       for (const a of answers) {
         const card = r.ctx.cards.find((c) => c.id === a.cardId);
         if (!card) continue;
-        // The flashcard passes the time of its interval preview, so the saved interval is the one shown.
-        const now = new Date(a.at ?? Date.now());
+        const now = new Date();
         const rated = isRated(r.s, card, now.getTime(), reviews);
         results.set(a.cardId, a.correct);
         if (rated) {
@@ -99,6 +94,8 @@ export function Session() {
         const updated = await recordReview(a.cardId, a.rating, item.kind, a.ms, !rated, now);
         if (updated) r.ctx.cards = r.ctx.cards.map((c) => (c.id === updated.id ? updated : c));
       }
+      // No answers = the exercise could not be shown (word family without enough invented forms): skip the card.
+      if (!answers.length) for (const id of item.cardIds) results.set(id, true);
       recordItem(r.s, item, results, before);
       setStats((st) => ({
         answers: st.answers + answers.length,
@@ -137,6 +134,9 @@ export function Session() {
     return (
       <div data-testid="session-summary">
         <h1 className="mb-2 font-read text-[24px] font-semibold">{stats.answers ? 'Oturum bitti' : 'Şu an tekrar yok'}</h1>
+        {!stats.answers && !drill && r.ctx.cards.filter(matchable).length < 5 && (
+          <p className="text-sm text-muted">Eşleştirme için en az 5 kart gerekli. Okurken kelime ekle.</p>
+        )}
         {stats.answers > 0 && (
           <p className="card tabular-nums">
             {stats.answers} cevap · %{Math.round((stats.correct / stats.answers) * 100)} doğru
@@ -153,24 +153,12 @@ export function Session() {
 
   const card = r.ctx.cards.find((c) => c.id === item.cardIds[0]);
   const left = minutes && !drill ? Math.max(0, minutes * 60_000 - (Date.now() - r.s.startedAt)) : null;
-  const exercise = (() => {
-    if (item.kind === 'match') return <Matching pairs={item.pairs!} mode={item.mode!} onDone={onDone} />;
-    if (!card) return null;
-    switch (item.kind) {
-      case 'flash-de':
-        return <Flashcard card={card} direction="de" onDone={onDone} />;
-      case 'flash-tr':
-        return <Flashcard card={card} direction="tr" onDone={onDone} />;
-      case 'artikel':
-        return <ArtikelPlural card={card} onDone={onDone} />;
-      case 'cloze':
-        return <Cloze card={card} onDone={onDone} />;
-      case 'production':
-        return <Production card={card} onDone={onDone} />;
-      case 'family':
-        return <WordFamily card={card} known={r.ctx.known} onDone={onDone} />;
-    }
-  })();
+  const exercise =
+    item.kind === 'match' ? (
+      <Matching pairs={item.pairs!} mode={item.mode!} onDone={onDone} />
+    ) : card ? (
+      <WordFamily card={card} known={r.ctx.known} onDone={onDone} />
+    ) : null;
 
   return (
     <div data-testid="session">

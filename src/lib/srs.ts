@@ -1,6 +1,6 @@
 // FSRS scheduling (spec "Vocabulary trainer") on top of ts-fsrs, plus the exercise result → rating
 // mapping. Pure: no IndexedDB, so it runs in the node unit tests.
-import { createEmptyCard, fsrs, generatorParameters, Rating, type Card, type Grade, type State } from 'ts-fsrs';
+import { createEmptyCard, fsrs, generatorParameters, type Card, type Grade, type State } from 'ts-fsrs';
 
 /** A ts-fsrs card with dates as ISO strings, so it survives IndexedDB and the JSON backup unchanged. */
 export interface FsrsCard {
@@ -24,8 +24,8 @@ export const MATURE_DAYS = 21;
 /** The learning day starts at 04:00 local time, so a late-night session still counts as "today". */
 export const DAY_START_HOUR = 4;
 
-// Short-term steps: Good on a new card → 5 min → 10 min → days, so it is shown three times in one
-// session (flashcard → matching → cloze). Again → 1 min. Relearning once after 10 min. Fuzz spreads
+// Short-term steps: Good on a new card → 5 min → 10 min → days, so it comes back in three matching
+// rounds of one session before it waits for tomorrow. Again → 1 min. Relearning once after 10 min. Fuzz spreads
 // long intervals so cards saved together do not stay together.
 const scheduler = fsrs(
   generatorParameters({ enable_fuzz: true, learning_steps: ['1m', '5m', '10m'], relearning_steps: ['10m'] }),
@@ -62,13 +62,6 @@ export function phaseOf(f: FsrsCard): Phase {
 
 export function schedule(f: FsrsCard, now: Date, rating: Grade4): FsrsCard {
   return toStored(scheduler.next(toCard(f), now, rating as Grade).card);
-}
-
-/** Time until the next review for each button (flashcard: "Tekrar 1 dk · İyi 10 dk …"). */
-export function previewIntervals(f: FsrsCard, now: Date): Record<Grade4, number> {
-  const p = scheduler.repeat(toCard(f), now);
-  const ms = (r: Grade4) => p[r as Grade].card.due.getTime() - now.getTime();
-  return { 1: ms(Rating.Again), 2: ms(Rating.Hard), 3: ms(Rating.Good), 4: ms(Rating.Easy) };
 }
 
 export interface ExerciseResult {

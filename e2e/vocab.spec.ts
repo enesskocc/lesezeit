@@ -4,13 +4,13 @@ import { FAKE_TOKEN, mockReaderApi, readerText, setupAndOpen, TEXT_DATE, TEXT_ID
 // Milestone 6: FSRS cards and the vocabulary trainer, with the synthetic reader text (e2e/fixtures.ts).
 
 /** What the six cards saved from the fixture text expect as answers. */
-const CARDS: Record<string, { de: string; tr: string; cloze: string; at: [number, number] }> = {
-  'w:anfangen': { de: 'anfangen', tr: 'başlıyor', cloze: 'fängt an', at: [0, 1] },
-  'w:morgen': { de: 'morgen', tr: 'yarın', cloze: 'morgen', at: [0, 2] },
-  'w:er': { de: 'er', tr: 'o', cloze: 'Er', at: [0, 0] },
-  'w:haus': { de: 'das Haus', tr: 'ev', cloze: 'Haus', at: [1, 1] },
-  'w:sein': { de: 'sein', tr: '-dir', cloze: 'ist', at: [1, 2] },
-  'w:alt': { de: 'alt', tr: 'eski', cloze: 'alt', at: [1, 3] },
+const CARDS: Record<string, { de: string; tr: string; at: [number, number] }> = {
+  'w:anfangen': { de: 'anfangen', tr: 'başlıyor', at: [0, 1] },
+  'w:morgen': { de: 'morgen', tr: 'yarın', at: [0, 2] },
+  'w:er': { de: 'er', tr: 'o', at: [0, 0] },
+  'w:haus': { de: 'das Haus', tr: 'ev', at: [1, 1] },
+  'w:sein': { de: 'sein', tr: '-dir', at: [1, 2] },
+  'w:alt': { de: 'alt', tr: 'eski', at: [1, 3] },
 };
 const byDe = new Map(Object.entries(CARDS).map(([id, c]) => [c.de, { id, ...c }]));
 
@@ -66,47 +66,19 @@ async function addCards(page: Page, ids: string[]) {
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * Answers whatever exercise is on screen, correctly. Returns its kind. `pause` runs right before the
- * final tap ("Devam" / "İyi"): time spent reading the feedback, so the answer itself stays fast.
+ * Matches every pair of the round on screen correctly. `pause` runs right before "Devam": time spent
+ * reading the result, so the round itself stays fast.
  */
-async function answerCorrectly(page: Page, pause: () => Promise<void> = async () => {}): Promise<string> {
-  const ex = page.locator('[data-testid^="ex-"]').first();
-  const kind = (await ex.getAttribute('data-testid'))!;
-  const card = CARDS[(await ex.getAttribute('data-card')) ?? ''];
-  switch (kind) {
-    case 'ex-flash':
-      await page.getByRole('button', { name: 'Göster' }).click();
-      await pause();
-      await page.getByRole('button', { name: /^İyi/ }).click();
-      return kind;
-    case 'ex-match': {
-      for (const left of await page.locator('[data-side="l"]').allInnerTexts()) {
-        await page.locator('[data-side="l"]').filter({ hasText: new RegExp(`^${escapeRe(left)}$`) }).click();
-        const tr = byDe.get(left)!.tr;
-        await page.locator('[data-side="r"]').filter({ hasText: new RegExp(`^${escapeRe(tr)}$`) }).click();
-      }
-      break;
-    }
-    case 'ex-cloze':
-      await page.getByRole('textbox').fill(card!.cloze);
-      await page.getByRole('button', { name: 'Kontrol' }).click();
-      break;
-    case 'ex-artikel':
-      await page.getByRole('button', { name: 'das', exact: true }).click();
-      await page.getByRole('textbox', { name: 'Çoğul' }).fill('Häuser');
-      await page.getByRole('button', { name: 'Kontrol' }).click();
-      break;
-    case 'ex-production':
-      await page.getByRole('textbox').fill(card!.de);
-      await page.getByRole('button', { name: 'Kontrol' }).click();
-      break;
-    default:
-      throw new Error(`unexpected exercise ${kind}`);
+async function matchAll(page: Page, pause: () => Promise<void> = async () => {}) {
+  await expect(page.getByTestId('ex-match')).toBeVisible();
+  for (const left of await page.locator('[data-side="l"]').allInnerTexts()) {
+    await page.locator('[data-side="l"]').filter({ hasText: new RegExp(`^${escapeRe(left)}$`) }).click();
+    const tr = byDe.get(left)!.tr;
+    await page.locator('[data-side="r"]').filter({ hasText: new RegExp(`^${escapeRe(tr)}$`) }).click();
   }
   await expect(page.getByTestId('feedback')).toContainText(/Doğru|hatasız/);
   await pause();
   await page.getByRole('button', { name: 'Devam' }).click();
-  return kind;
 }
 
 test.beforeEach(async ({ page }) => {
@@ -116,8 +88,8 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/lesezeit/dict/**', (route) => route.abort());
 });
 
-test('ACCEPTANCE: a 10-minute mixed session runs and the due dates update correctly', async ({ page }) => {
-  test.setTimeout(120_000); // ~14 real exercises, each answered through the UI
+test('ACCEPTANCE: a session of matching rounds runs and the due dates update correctly', async ({ page }) => {
+  test.setTimeout(120_000);
   await page.clock.install({ time: new Date('2026-10-22T08:00:00') });
   await setupAndOpen(page);
   await addCards(page, Object.keys(CARDS));
@@ -125,74 +97,109 @@ test('ACCEPTANCE: a 10-minute mixed session runs and the due dates update correc
   await page.getByRole('link', { name: 'Kelimeler' }).click();
   await expect(page.getByTestId('vocab-stats')).toContainText('6Yeni');
   await page.getByRole('button', { name: '10 dk' }).click();
-  const start = await page.evaluate(() => Date.now());
   await page.getByRole('button', { name: 'Oturumu başlat · 6 kart' }).click();
 
-  const kinds: string[] = [];
-  for (let n = 0; n < 60; n++) {
+  let rounds = 0;
+  for (let n = 0; n < 20; n++) {
     const next = page.locator('[data-step], [data-testid="session-summary"]').first();
     await expect(next).toBeVisible();
     if (await page.getByTestId('session-summary').isVisible()) break;
     const step = await next.getAttribute('data-step');
-    // ~45 s per exercise, spent on the feedback: the 10 minutes run out before all cards graduate.
-    kinds.push(await answerCorrectly(page, () => page.clock.fastForward(45_000)));
-    // The next exercise (or the summary) replaces this one.
-    await expect(page.locator(`[data-step="${step}"]`)).toHaveCount(0);
+    // Enes 2026-10-22: matching only — no flashcard, cloze, artikel or production.
+    await expect(page.locator('[data-testid^="ex-"]')).toHaveAttribute('data-testid', 'ex-match');
+    await matchAll(page, () => page.clock.fastForward(45_000));
+    rounds++;
+    await expect(page.locator(`[data-step="${step}"]`)).toHaveCount(0); // the next round (or the summary) replaced it
   }
+  // All six cards were in every round; after three rounds (5 min → 10 min → days) nothing is left
+  // for today, so the session ends before its 10 minutes with the summary.
+  expect(rounds).toBe(3);
   await expect(page.getByTestId('session-summary')).toContainText(/Oturum bitti/);
-  await expect(page.getByTestId('session-summary')).toContainText('%100 doğru');
-  const end = await page.evaluate(() => Date.now());
-  expect(end - start).toBeGreaterThanOrEqual(10 * 60_000);
-  expect(new Set(kinds)).toEqual(new Set(['ex-flash', 'ex-match', 'ex-cloze']));
+  await expect(page.getByTestId('session-summary')).toContainText('18 cevap · %100 doğru · 6 yeni kart');
 
   const { cards, logs } = await readDb(page);
   expect(cards).toHaveLength(6);
-  expect(new Set(logs.map((l) => l.rating)), 'fast, correct answers on new cards are all Good').toEqual(new Set([3]));
+  expect(new Set(logs.map((l) => l.rating)), 'correct matches are Good').toEqual(new Set([3]));
   for (const c of cards) {
     const own = logs.filter((l) => l.cardId === c.id && !l.practice);
-    expect(own.length, c.id).toBeGreaterThan(0);
-    expect(c.fsrs.state, `${c.id} was started`).not.toBe(0);
-    expect(own.at(-1)!.dueAfter, `${c.id}: card due = last review's result`).toBe(c.due);
+    expect(own.map((l) => l.exercise), c.id).toEqual(['match', 'match', 'match']);
+    expect(own.at(-1)!.dueAfter, `${c.id}: card due = result of the last review`).toBe(c.due);
     for (const l of own) expect(l.dueAfter!).toBeGreaterThan(Date.parse(l.at));
-    const last = Date.parse(own.at(-1)!.at);
-    if (c.fsrs.state === 2) expect(c.due - last, `${c.id} graduated → days`).toBeGreaterThan(20 * 3600_000);
-    else expect(c.due - last, `${c.id} still learning → minutes`).toBeLessThanOrEqual(10 * 60_000);
-  }
-  // Learning steps in order: flashcard → matching → cloze.
-  const graduated = cards.filter((c) => c.fsrs.state === 2);
-  expect(graduated.length).toBeGreaterThan(0);
-  for (const c of graduated) {
-    expect(logs.filter((l) => l.cardId === c.id && !l.practice).map((l) => l.exercise)).toEqual(['flash-de', 'match', 'cloze']);
+    expect(c.fsrs.state, `${c.id} graduated`).toBe(2);
+    expect(c.due - Date.parse(own.at(-1)!.at), `${c.id} → days`).toBeGreaterThan(20 * 3600_000);
   }
 
-  // The tab shows the new schedule: no new cards left for today.
+  // The tab shows the new schedule: no new cards left, nothing due now.
   await page.getByRole('link', { name: 'Kelimelere dön' }).click();
   await expect(page.getByTestId('vocab-stats')).toContainText('0Yeni');
+  await expect(page.getByRole('button', { name: 'Şimdilik tekrar yok' })).toBeDisabled();
 });
 
-test('a drill on a new card is practice: the schedule does not change', async ({ page }) => {
+test('a matching drill on new cards is practice; a wrong pair comes back once at the end', async ({ page }) => {
   await setupAndOpen(page);
-  await addCards(page, ['w:haus']);
+  await addCards(page, Object.keys(CARDS));
   await page.getByRole('link', { name: 'Kelimeler' }).click();
-  await page.getByRole('button', { name: 'Artikel & Plural' }).click();
-  await expect(page.getByTestId('ex-artikel')).toContainText('ev');
-  await page.getByRole('button', { name: 'der', exact: true }).click(); // wrong on purpose
-  await page.getByRole('textbox', { name: 'Çoğul' }).fill('Häuser');
-  await page.getByRole('button', { name: 'Kontrol' }).click();
-  await expect(page.getByTestId('feedback')).toContainText('Yanlış');
-  await expect(page.getByTestId('feedback')).toContainText('das Haus · die Häuser');
+  await page.getByRole('button', { name: 'Eşleştirme' }).click();
+  // One wrong pair on purpose: "das Haus" ↔ "yarın".
+  const haus = page.locator('[data-side="l"]').filter({ hasText: /^das Haus$/ });
+  await haus.click();
+  await page.locator('[data-side="r"]').filter({ hasText: /^yarın$/ }).click();
+  await expect(haus).toHaveClass(/border-bad/);
+  await expect(haus).not.toHaveClass(/border-bad/);
+  for (const left of await page.locator('[data-side="l"]').allInnerTexts()) {
+    await page.locator('[data-side="l"]').filter({ hasText: new RegExp(`^${escapeRe(left)}$`) }).click();
+    await page.locator('[data-side="r"]').filter({ hasText: new RegExp(`^${escapeRe(byDe.get(left)!.tr)}$`) }).click();
+  }
+  await expect(page.getByTestId('feedback')).toContainText('Neredeyse');
+  await expect(page.getByTestId('feedback')).toContainText('1 hata');
   await page.getByRole('button', { name: 'Devam' }).click();
-  // The wrong card is asked once more at the end of the drill, with the same exercise.
-  await expect(page.getByTestId('ex-artikel')).toBeVisible();
-  await answerCorrectly(page);
-  await expect(page.getByTestId('session-summary')).toContainText('2 cevap · %50 doğru');
+  // The wrong card comes back in one more matching round.
+  await expect(page.getByText('Eşleştirme · tekrar · alıştırma')).toBeVisible();
+  await matchAll(page);
+  await expect(page.getByTestId('session-summary')).toContainText('7 cevap · %86 doğru');
 
   const { cards, logs } = await readDb(page);
-  expect(cards[0]!.fsrs.state).toBe(0);
-  expect(logs.map((l) => [l.exercise, l.rating, !!l.practice])).toEqual([
-    ['artikel', 1, true],
-    ['artikel', 3, true],
-  ]);
+  expect(cards.every((c) => c.fsrs.state === 0), 'new cards keep their schedule').toBe(true);
+  expect(logs.every((l) => l.practice)).toBe(true);
+  expect(logs.filter((l) => l.cardId === 'w:haus').map((l) => l.rating)).toEqual([1, 3]);
+});
+
+test('matching: tapping a tile is silent; the 🔊 button reads the German word', async ({ page }) => {
+  // The WebKit build of Playwright has no speechSynthesis: a stub records what would be spoken.
+  await page.addInitScript(() => {
+    const spoken: string[] = [];
+    Object.assign(window, {
+      __spoken: spoken,
+      SpeechSynthesisUtterance: class {
+        text: string;
+        constructor(text: string) {
+          this.text = text;
+        }
+      },
+      speechSynthesis: { getVoices: () => [], cancel: () => {}, speak: (u: { text: string }) => spoken.push(u.text) },
+    });
+  });
+  await setupAndOpen(page);
+  await addCards(page, Object.keys(CARDS));
+  await page.getByRole('link', { name: 'Kelimeler' }).click();
+  await page.getByRole('button', { name: 'Eşleştirme' }).click();
+  const spoken = () => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken);
+
+  await page.locator('[data-side="l"]').filter({ hasText: /^das Haus$/ }).click();
+  await page.locator('[data-side="r"]').filter({ hasText: /^ev$/ }).click();
+  expect(await spoken()).toEqual([]);
+  await expect(page.getByTestId('match-speak')).toHaveCount(6); // German tiles only, not the Turkish ones
+  await page.getByRole('button', { name: 'anfangen: dinle' }).click();
+  expect(await spoken()).toEqual(['anfangen']);
+  await expect(page.locator('[data-side="l"]').filter({ hasText: /^anfangen$/ })).toHaveAttribute('aria-pressed', 'false');
+
+  // Sound off: no 🔊 buttons at all.
+  await page.getByRole('button', { name: 'Bitir' }).click();
+  await page.getByRole('link', { name: 'Kelimelere dön' }).click();
+  await page.getByRole('button', { name: /Ses: açık/ }).click();
+  await page.getByRole('button', { name: 'Eşleştirme' }).click();
+  await expect(page.getByTestId('ex-match')).toBeVisible();
+  await expect(page.getByTestId('match-speak')).toHaveCount(0);
 });
 
 test('card list → detail with its sentence and a link back to the text; delete can be undone', async ({ page }) => {
@@ -218,7 +225,7 @@ test('card list → detail with its sentence and a link back to the text; delete
   await expect(word(page, 1, 1)).toHaveClass(/learning/);
 });
 
-test('cards saved before milestone 6 become new FSRS cards with dictionary data and cloze forms', async ({ page }) => {
+test('cards saved before milestone 6 become new FSRS cards with dictionary data and saved word positions', async ({ page }) => {
   // A milestone 5 database (Dexie version 2 = IndexedDB version 20) with one card and its cached text.
   await page.goto('./icon.svg');
   await page.evaluate(
@@ -267,9 +274,4 @@ test('cards saved before milestone 6 become new FSRS cards with dictionary data 
   expect(cards[0]!.contexts[0]!.forms).toEqual(['Haus']); // "Das" is not part of the card
   expect(typeof cards[0]!.due).toBe('number');
 
-  // The migrated card works in a cloze drill.
-  await page.getByRole('button', { name: 'Boşluk' }).click();
-  await expect(page.getByTestId('cloze-sentence')).toHaveText(/^Das\s+ist alt\.$/);
-  await answerCorrectly(page);
-  await expect(page.getByTestId('session-summary')).toContainText('1 cevap · %100 doğru');
 });

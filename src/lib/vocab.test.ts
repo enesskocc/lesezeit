@@ -1,12 +1,12 @@
-// Milestone 6 logic: FSRS mapping, exercise checks and the session composer. Synthetic cards only.
+// Milestone 6 logic: FSRS mapping, matching, word family and the session composer. Synthetic cards only.
 //   npm run test:unit
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  buildMatch, checkCloze, checkPlural, checkProduction, checkTyped, clozeOf, familyOf, membersOf, splitMwe, tokenSpans,
+  buildMatch, familyOf, membersOf, splitMwe, tokenSpans,
   type CardLike,
 } from './exercises.ts';
-import { dueCounts, exerciseFor, isRated, nextItem, recordItem, startSession, type Context, type SessionCard } from './session.ts';
+import { dueCounts, isRated, nextItem, recordItem, startSession, type Context, type SessionCard } from './session.ts';
 import { dayStart, formatInterval, lemmaOfDisplay, newFsrs, phaseOf, ratingFor, schedule, type Grade4 } from './srs.ts';
 
 const T0 = Date.parse('2026-10-22T08:00:00Z');
@@ -22,13 +22,6 @@ function card(id: string, over: Partial<SessionCard> = {}): SessionCard {
     createdAt: new Date(T0 - 3600_000).toISOString(), fsrs, due: Date.parse(fsrs.due), ...over,
   };
 }
-
-const haus = (): SessionCard =>
-  card('Haus', {
-    display: 'das Haus', lemma: 'Haus', pos: 'NOUN',
-    entry: { w: 'Haus', p: 'n', g: 'n', pl: 'Häuser', de: 'Gebäude, in dem Menschen wohnen', syn: ['Gebäude'] },
-    contexts: [{ textId: 't1', date: '2026-10-21', s: 1, sentence: 'Das Haus ist alt.', tokens: [1], forms: ['Haus'] }],
-  });
 
 // ---------------------------------------------------------------- srs
 
@@ -74,60 +67,12 @@ test('day starts at 04:00 local time; intervals in Turkish; lemma from display',
 
 // ---------------------------------------------------------------- exercises
 
-test('typed answers: ae/oe/ue, case and one inner typo are tolerated; endings and umlauts are not', () => {
-  assert.equal(checkTyped('Haeuser', 'Häuser'), 'exact');
-  assert.equal(checkTyped('  häuser ', 'Häuser'), 'exact');
-  assert.equal(checkTyped('Entscheidnug', 'Entscheidung'), 'typo');
-  assert.equal(checkTyped('Hasuer', 'Häuser'), 'wrong', 'umlaut missing and letters swapped');
-  assert.equal(checkTyped('Maus', 'Haus'), 'wrong', 'no typo allowance below 5 letters');
-  assert.equal(checkTyped('', 'Haus'), 'wrong');
-  // Code review 2026-10-22: a wrong ending or a missing umlaut is grammar or another word, not a typo.
-  assert.equal(checkTyped('macht', 'machte'), 'wrong');
-  assert.equal(checkTyped('Lampe', 'Lampen'), 'wrong');
-  assert.equal(checkTyped('schon', 'schön'), 'wrong');
-  assert.equal(checkTyped('Mutter', 'Mütter'), 'wrong');
-  assert.equal(checkTyped('Hauser', 'Häuser'), 'wrong');
-});
-
-test('production needs the article; the right word with a wrong article is only partly right', () => {
-  const h = haus();
-  assert.deepEqual(checkProduction('das Haus', h), { correct: true });
-  assert.equal(checkProduction('der Haus', h).partial, true);
-  assert.equal(checkProduction('Haus', h).partial, true);
-  assert.equal(checkProduction('die Maus', h).correct, false);
-  const refl = card('beschweren', { display: 'sich beschweren', lemma: 'beschweren' });
-  assert.deepEqual(checkProduction('sich beschweren', refl), { correct: true });
-  assert.equal(checkProduction('beschweren', refl).partial, true);
-  assert.equal(checkPlural('die Häuser', h).correct, true);
-  assert.equal(checkPlural('haeuser', h).correct, true);
-  assert.equal(checkPlural('Hauser', h).correct, false, 'plural must be exact');
-  assert.equal(checkPlural('Haus', h).correct, false, 'the singular is not the plural');
-});
-
-test('cloze blanks the saved forms in order, also both parts of a separable verb', () => {
-  const sep = card('anfangen', {
-    contexts: [{ textId: 't', date: 'd', s: 0, sentence: 'Er fängt morgen an.', tokens: [1, 3], forms: ['fängt', 'an'] }],
-  });
-  const c = clozeOf(sep)!;
-  assert.deepEqual(c.parts, ['Er ', 0, ' morgen ', 1, '.']);
-  assert.deepEqual(c.answers, ['fängt', 'an']);
-  assert.equal(checkCloze('faengt an', c).correct, true);
-  assert.equal(checkCloze('fängt', c).correct, false);
-  // "an" must not match inside "Anfang"; a card whose word is not in the sentence has no cloze.
-  const inside = card('an', { contexts: [{ textId: 't', date: 'd', s: 0, sentence: 'Der Anfang.', tokens: [], forms: ['an'] }] });
-  assert.equal(clozeOf(inside), null);
-});
-
-test('cloze blanks the tapped occurrence of a repeated word (saved positions)', () => {
+test('saved positions point at the tapped occurrence of a repeated word', () => {
   const sentence = 'Die Frau sagt, die Frau habe recht.';
   const toks = ['Die', 'Frau', 'sagt', ',', 'die', 'Frau', 'habe', 'recht', '.'].map((s) => ({ s }));
-  const spans = tokenSpans(sentence, toks, [5])!;
-  assert.deepEqual(spans, [[19, 23]]);
-  const c = clozeOf(card('Frau', { contexts: [{ textId: 't', date: 'd', s: 0, sentence, tokens: [5], forms: ['Frau'], spans }] }))!;
-  assert.deepEqual(c.parts, ['Die Frau sagt, die ', 0, ' habe recht.']);
-  // Without positions (older cards) the exact case wins: the verb "weg", not the noun "Weg".
-  const weg = card('weg', { contexts: [{ textId: 't', date: 'd', s: 0, sentence: 'Der Weg ist weg.', tokens: [3], forms: ['weg'] }] });
-  assert.deepEqual(clozeOf(weg)!.parts, ['Der Weg ist ', 0, '.']);
+  assert.deepEqual(tokenSpans(sentence, toks, [5]), [[19, 23]]);
+  assert.deepEqual(tokenSpans('Er fängt morgen an.', ['Er', 'fängt', 'morgen', 'an', '.'].map((s) => ({ s })), [3, 1]), [[3, 8], [16, 18]]);
+  assert.equal(tokenSpans('Kurz.', [{ s: 'Lang' }], [0]), undefined, 'tokens that do not fit the sentence give no positions');
 });
 
 test('matching: 5–6 unique pairs, rated cards first, expression fillers for Nomen ↔ Verb', () => {
@@ -172,21 +117,22 @@ test('word family: stem + known suffixes only; distractors are invented, never r
 
 const ctxOf = (cards: SessionCard[]): Context => ({ cards, mwes: [], known: new Set(), rand });
 
-/** Answers an item: every card in it gets `rating`, like the session screen does. */
-function answer(cards: SessionCard[], item: ReturnType<typeof nextItem>, rating: Grade4, now: number) {
+/** Answers an item like the session screen does: each card gets `rating` (or `rating(id)`). */
+function answer(cards: SessionCard[], item: ReturnType<typeof nextItem>, rating: Grade4 | ((id: string) => Grade4), now: number) {
   const before = new Map<string, SessionCard['fsrs']['state']>();
   const results = new Map<string, boolean>();
   for (const id of item!.cardIds) {
     const i = cards.findIndex((c) => c.id === id);
+    const g = typeof rating === 'function' ? rating(id) : rating;
     before.set(id, cards[i]!.fsrs.state);
-    results.set(id, rating > 1);
-    const fsrs = schedule(cards[i]!.fsrs, new Date(now), rating);
+    results.set(id, g > 1);
+    const fsrs = schedule(cards[i]!.fsrs, new Date(now), g);
     cards[i] = { ...cards[i]!, fsrs, due: Date.parse(fsrs.due) };
   }
   return { before, results };
 }
 
-test('a new card meets flashcard → matching → cloze within one session, then waits days', () => {
+test('a session is matching rounds only: a new card meets three rounds, then waits days', () => {
   const cards = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Eps'].map((x) => card(x));
   const ctx = ctxOf(cards);
   const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150 }, T0);
@@ -201,7 +147,7 @@ test('a new card meets flashcard → matching → cloze within one session, then
     now += 30_000;
   }
   for (const c of cards) {
-    assert.deepEqual(kinds.get(c.id), ['flash-de', 'match', 'cloze'], c.id);
+    assert.deepEqual(kinds.get(c.id), ['match', 'match', 'match'], c.id);
     assert.equal(c.fsrs.state, 2);
     assert.ok(c.due - now > 12 * 3600_000, 'graduated: due tomorrow or later');
   }
@@ -241,8 +187,7 @@ test('time limit ends the session; a wrong card is asked once more at the end', 
     if (!item) break;
     item.cardIds.forEach((id) => seen.push({ id, repeat: item.repeat, at: now }));
     // "Alpha" is always wrong, everything else right.
-    const wrong = item.cardIds.includes('w:alpha');
-    const { before, results } = answer(cards, item, wrong ? 1 : 3, now);
+    const { before, results } = answer(cards, item, (id) => (id === 'w:alpha' ? 1 : 3), now);
     recordItem(s, item, results, before);
     now += 40_000;
   }
@@ -253,14 +198,14 @@ test('time limit ends the session; a wrong card is asked once more at the end', 
 });
 
 test('drill: only due, already started cards are rated; new or not-due cards are practice', () => {
-  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'cloze' }, T0);
+  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'family' }, T0);
   const review = { ...newFsrs(new Date(T0)), state: 2 as const };
   assert.equal(isRated(s, { fsrs: review, due: T0 - 1 }, T0), true);
   assert.equal(isRated(s, { fsrs: review, due: T0 + 1 }, T0), false);
   assert.equal(isRated(s, { fsrs: newFsrs(new Date(T0)), due: T0 - 1 }, T0), false, 'new card keeps its learning start');
   assert.equal(isRated(startSession({ minutes: 10, newLeft: 15, reviewsLeft: 150 }, T0), { fsrs: newFsrs(), due: T0 }, T0), true);
   // Drills respect today's review limit too.
-  const full = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 2, drill: 'cloze' }, T0);
+  const full = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 2, drill: 'family' }, T0);
   assert.equal(isRated(full, { fsrs: review, due: T0 - 1 }, T0, 1), true);
   assert.equal(isRated(full, { fsrs: review, due: T0 - 1 }, T0, 2), false);
 });
@@ -295,13 +240,26 @@ test('matching falls back to another mode when the rotated one has fewer than 5 
   assert.deepEqual(item.cardIds, ['w:alpha']);
 });
 
-test('young and mature cards rotate through their exercise types', () => {
-  const young = haus();
-  young.fsrs = { ...young.fsrs, state: 2, scheduled_days: 5, reps: 0 };
-  const ctx = ctxOf([young]);
-  const kinds = [0, 1, 2].map((reps) => exerciseFor({ ...young, fsrs: { ...young.fsrs, reps } }, ctx));
-  assert.deepEqual(kinds, ['cloze', 'artikel', 'match']);
-  const mature = { ...young, fsrs: { ...young.fsrs, scheduled_days: 40 } };
-  assert.equal(exerciseFor({ ...mature, fsrs: { ...mature.fsrs, reps: 0 } }, ctx), 'production');
-  assert.equal(exerciseFor({ ...mature, fsrs: { ...mature.fsrs, reps: 1 } }, ctx), 'cloze', 'no family for Haus → next option');
+test('fewer than 5 matchable cards: no round; cards without any pair are left out', () => {
+  const four = ['A', 'B', 'C', 'D'].map((x) => card(x));
+  assert.equal(nextItem(startSession({ minutes: 10, newLeft: 15, reviewsLeft: 150 }, T0), ctxOf(four), T0), null);
+  const bare = card('Leer', { meaning_tr: '' });
+  assert.equal(dueCounts([...four, bare], T0, 15, 150).fresh, 4, 'a card with nothing to match is not counted');
+  const item = nextItem(startSession({ minutes: 10, newLeft: 15, reviewsLeft: 150 }, T0), ctxOf([...four, card('E'), bare]), T0)!;
+  assert.equal(item.kind, 'match');
+  assert.ok(!item.cardIds.includes('w:leer'));
+});
+
+test('word family drill: one card per item, a wrong card comes back once with the same exercise', () => {
+  const fam = { w: 'entscheiden', p: 'v' as const, fam: ['entscheidbar', 'Entscheider', 'Entscheidung'] };
+  const cards = [card('entscheiden', { entry: fam }), card('Haus')];
+  const ctx = ctxOf(cards);
+  const s = startSession({ minutes: 0, newLeft: 15, reviewsLeft: 150, drill: 'family' }, T0);
+  const first = nextItem(s, ctx, T0)!;
+  assert.deepEqual([first.kind, first.cardIds], ['family', ['w:entscheiden']], 'only cards with a family');
+  recordItem(s, first, new Map([['w:entscheiden', false]]), new Map());
+  const again = nextItem(s, ctx, T0)!;
+  assert.deepEqual([again.kind, again.repeat], ['family', true]);
+  recordItem(s, again, new Map([['w:entscheiden', true]]), new Map());
+  assert.equal(nextItem(s, ctx, T0), null);
 });

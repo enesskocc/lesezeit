@@ -1,7 +1,7 @@
-// Pure exercise logic (spec "Exercise types"): answer checking, cloze gaps, matching pairs, article &
-// plural, word family. No UI and no IndexedDB, so it runs in the node unit tests.
+// Pure exercise logic (spec "Exercise types", narrowed by Enes 2026-10-22 to matching + word family):
+// matching pairs, word family, text folding. No UI and no IndexedDB, so it runs in the node unit tests.
 import { ARTICLE } from '../../shared/dict.ts';
-import type { CardContext, CardRow } from './db';
+import type { CardRow } from './db';
 
 export type CardLike = Pick<CardRow, 'id' | 'kind' | 'display' | 'lemma' | 'pos' | 'meaning_tr' | 'contexts' | 'entry' | 'mweKind'>;
 export type Rand = () => number;
@@ -15,9 +15,9 @@ export function shuffle<T>(items: readonly T[], rand: Rand = Math.random): T[] {
   return a;
 }
 
-// ---------------------------------------------------------------- typed answers
+// ---------------------------------------------------------------- text
 
-/** Lenient form for comparing typed answers: case, punctuation, spaces and ä/ae, ö/oe, ü/ue, ß/ss don't matter. */
+/** Lenient form for comparing words (search, unique tiles): case, punctuation, spaces and ä/ae, ö/oe, ü/ue, ß/ss don't matter. */
 export function fold(s: string): string {
   return s
     .normalize('NFC')
@@ -31,103 +31,7 @@ export function fold(s: string): string {
     .trim();
 }
 
-function distance(a: string, b: string): number {
-  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    let prev = row[0]!;
-    row[0] = i;
-    for (let j = 1; j <= b.length; j++) {
-      const cur = row[j]!;
-      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
-      prev = cur;
-    }
-  }
-  return row[b.length]!;
-}
-
-export type Verdict = 'exact' | 'typo' | 'wrong';
-
-/** Like fold, but umlauts lose their dots: "Mütter" and "Mutter" become the same. */
-const bare = (s: string) => fold(s.replace(/[äÄ]/g, 'a').replace(/[öÖ]/g, 'o').replace(/[üÜ]/g, 'u'));
-
-/**
- * One wrong letter is a typo (counts as correct but Hard), two for long words; none below 5 letters
- * (Haus ≠ Maus). Never a typo when only the ending differs (macht/machte, Lampe/Lampen) or only an
- * umlaut is missing (schon/schön, Mutter/Mütter): those are grammar or a different word.
- */
-export function checkTyped(input: string, expected: string): Verdict {
-  const a = fold(input);
-  const b = fold(expected);
-  if (!a) return 'wrong';
-  if (a === b) return 'exact';
-  if (bare(input) === bare(expected)) return 'wrong';
-  let common = 0;
-  while (common < a.length && a[common] === b[common]) common++;
-  if (common >= b.length - 2) return 'wrong'; // the difference is in the last two letters: the ending
-  const allowed = b.length >= 10 ? 2 : b.length >= 5 ? 1 : 0;
-  return distance(a, b) <= allowed ? 'typo' : 'wrong';
-}
-
-export interface Outcome {
-  correct: boolean;
-  partial?: boolean;
-  note?: string; // Turkish explanation shown with the answer
-}
-
-const fromVerdict = (v: Verdict): Outcome =>
-  v === 'wrong' ? { correct: false } : v === 'typo' ? { correct: true, partial: true, note: 'Küçük bir yazım hatası var.' } : { correct: true };
-
-// ---------------------------------------------------------------- article & plural
-
-export function articleOf(card: CardLike): 'der' | 'die' | 'das' | undefined {
-  if (card.kind !== 'lemma') return undefined;
-  const fromDisplay = /^(der|die|das) \S+$/.exec(card.display)?.[1] as 'der' | 'die' | 'das' | undefined;
-  if (fromDisplay) return fromDisplay;
-  return card.entry?.p === 'n' && card.entry.g ? ARTICLE[card.entry.g] : undefined;
-}
-
-/** Plural from the dictionary, if it is a real form ("Häuser"), not "?" or empty. */
-export function pluralOf(card: CardLike): string | undefined {
-  const pl = card.entry?.pl;
-  return pl && /^\p{L}[\p{L}:\- ]*$/u.test(pl) ? pl : undefined;
-}
-
-/** The plural must be exact (after folding): one letter is the whole point here (Mutter → Mütter). "die Häuser" is fine too. */
-export function checkPlural(input: string, card: CardLike): Outcome {
-  const typed = fold(input.replace(/^\s*die\s+/i, ''));
-  return { correct: typed !== '' && typed === fold(pluralOf(card) ?? '') };
-}
-
-// ---------------------------------------------------------------- production (TR → DE with article)
-
-export function checkProduction(input: string, card: CardLike): Outcome {
-  const art = articleOf(card);
-  if (!art) {
-    const full = checkTyped(input, card.display);
-    if (full !== 'wrong') return fromVerdict(full);
-    // "beschweren" for "sich beschweren": right verb, missing "sich".
-    if (card.display !== card.lemma && checkTyped(input, card.lemma) !== 'wrong') {
-      return { correct: true, partial: true, note: `Tam hali: ${card.display}` };
-    }
-    return { correct: false };
-  }
-  const words = fold(input).split(' ');
-  const typedArt = ['der', 'die', 'das'].includes(words[0]!) ? words[0] : undefined;
-  const word = checkTyped(typedArt ? words.slice(1).join(' ') : input, card.lemma);
-  if (word === 'wrong') return { correct: false };
-  if (typedArt !== art) return { correct: true, partial: true, note: `Artikel: ${art} ${card.lemma}` };
-  return fromVerdict(word);
-}
-
-// ---------------------------------------------------------------- cloze
-
-export interface Cloze {
-  parts: (string | number)[]; // text, or the index of a gap
-  answers: string[]; // the gap texts as written in the sentence
-  ctx: CardContext;
-}
-
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// ---------------------------------------------------------------- saved positions
 
 /**
  * Character ranges of the chosen tokens in their sentence. Every token is located in order, so a
@@ -145,47 +49,6 @@ export function tokenSpans(sentence: string, toks: readonly { s: string }[], ind
   const out = [...indices].sort((a, b) => a - b).map((i) => at[i]);
   return out.length && out.every(Boolean) ? (out as [number, number][]) : undefined;
 }
-
-function blankSpans(sentence: string, spans: [number, number][]): Omit<Cloze, 'ctx'> | null {
-  const parts: (string | number)[] = [];
-  const answers: string[] = [];
-  let pos = 0;
-  for (const [from, to] of spans) {
-    if (from < pos || to > sentence.length || to <= from) return null;
-    if (from > pos) parts.push(sentence.slice(pos, from));
-    parts.push(answers.length);
-    answers.push(sentence.slice(from, to));
-    pos = to;
-  }
-  if (pos < sentence.length) parts.push(sentence.slice(pos));
-  return answers.length ? { parts, answers } : null;
-}
-
-/** Cards without saved positions: search the forms in order, exact case first ("Weg" ≠ "weg"). */
-function blankForms(sentence: string, forms: string[]): Omit<Cloze, 'ctx'> | null {
-  const spans: [number, number][] = [];
-  let pos = 0;
-  for (const f of forms) {
-    const re = (flags: string) => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRe(f)}(?![\\p{L}\\p{N}])`, flags).exec(sentence.slice(pos));
-    const m = re('u') ?? re('iu');
-    if (!m) return null;
-    spans.push([pos + m.index, pos + m.index + f.length]);
-    pos += m.index + f.length;
-  }
-  return blankSpans(sentence, spans);
-}
-
-/** The saved sentence with the word blanked ("Er ___ morgen ___."), or null if it can't be found. */
-export function clozeOf(card: CardLike): Cloze | null {
-  for (const ctx of card.contexts) {
-    const forms = ctx.forms?.length ? ctx.forms : card.kind === 'lemma' ? [card.lemma] : [];
-    const r = (ctx.spans?.length ? blankSpans(ctx.sentence, ctx.spans) : null) ?? (forms.length ? blankForms(ctx.sentence, forms) : null);
-    if (r) return { ...r, ctx };
-  }
-  return null;
-}
-
-export const checkCloze = (input: string, cloze: Cloze): Outcome => fromVerdict(checkTyped(input, cloze.answers.join(' ')));
 
 // ---------------------------------------------------------------- matching
 

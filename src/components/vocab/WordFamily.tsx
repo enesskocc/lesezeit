@@ -5,7 +5,6 @@ import { lookup } from '../../lib/dict';
 import { familyOf } from '../../lib/exercises';
 import { phaseOf, ratingFor } from '../../lib/srs';
 import { Feedback, Spoken, useSay, type OnDone } from './common';
-import { Flashcard } from './Flashcard';
 
 const CHECK_MS = 2500;
 
@@ -68,8 +67,19 @@ export function WordFamily({ card, known, onDone }: { card: CardRow; known: Read
     };
   }, [picked, family, card]);
 
-  // Not enough invented forms left (all turned out to be real words): fall back to a flashcard.
-  if (!family) return <Flashcard card={card} direction="tr" onDone={onDone} />;
+  // Not enough invented forms left (all turned out to be real words): skip this card, unrated.
+  if (!family) {
+    return (
+      <div className="card">
+        <p>
+          <span lang="de">{card.lemma}</span> için soru kurulamadı.
+        </p>
+        <button className="btn-primary mt-3 w-full" onClick={() => onDone([])}>
+          Devam
+        </button>
+      </div>
+    );
+  }
   if (!checked) return <p className="text-muted">Hazırlanıyor…</p>;
 
   const right = picked === family.target.word;

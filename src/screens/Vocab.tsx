@@ -2,9 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { db, DEFAULT_PREFS, getPrefs, setPrefs, type CardRow } from '../lib/db';
-import { buildMatch, fold } from '../lib/exercises';
+import { buildMatch, fold, MATCH_MIN } from '../lib/exercises';
 import { restoreCard, todayCounts, type DeletedCard } from '../lib/review';
-import { DRILLS, dueCounts, eligible, EXERCISE_LABEL, type Context } from '../lib/session';
+import { DRILLS, dueCounts, eligible, EXERCISE_LABEL, matchable, type Context } from '../lib/session';
 import { formatInterval, phaseOf, type Phase } from '../lib/srs';
 
 const LENGTHS: [number, string][] = [
@@ -50,6 +50,7 @@ export function Vocab() {
   const due = dueCounts(cards, now, Math.max(0, prefs.newPerDay - today.newDone), Math.max(0, prefs.maxReviews - today.reviewsDone));
   const mature = cards.filter((c) => phaseOf(c.fsrs) === 'mature').length;
   const nextDue = cards.reduce((m, c) => (c.due > now ? Math.min(m, c.due) : m), Infinity);
+  const tooFew = cards.filter(matchable).length < MATCH_MIN; // a matching round needs 5 pairs
   const ctx: Context = { cards, mwes: [], known: new Set(), rand: Math.random };
   const canDrill = (k: (typeof DRILLS)[number]) =>
     k === 'match' ? (['tr', 'def', 'syn', 'nv', 'vp'] as const).some((m) => buildMatch(m, cards, [])) : cards.some((c) => eligible(c, k, ctx));
@@ -105,14 +106,18 @@ export function Vocab() {
             </div>
             <button
               className="btn-primary mt-3 w-full"
-              disabled={due.total === 0}
+              disabled={due.total === 0 || tooFew}
               onClick={() => navigate(`/kelimeler/oturum?dk=${prefs.sessionMinutes}`)}
             >
-              {due.total ? `Oturumu başlat · ${due.total} kart` : 'Şimdilik tekrar yok'}
+              {tooFew ? 'En az 5 kart gerekli' : due.total ? `Oturumu başlat · ${due.total} kart` : 'Şimdilik tekrar yok'}
             </button>
-            {due.total === 0 && Number.isFinite(nextDue) && (
-              <p className="mt-2 text-center text-sm text-muted">Sıradaki tekrar {formatInterval(nextDue - now)} sonra.</p>
-            )}
+            <p className="mt-2 text-center text-sm text-muted">
+              {tooFew
+                ? 'Eşleştirme turu 5–6 çiftle oynanır. Okurken birkaç kelime daha ekle.'
+                : due.total === 0 && Number.isFinite(nextDue)
+                  ? `Sıradaki tekrar ${formatInterval(nextDue - now)} sonra.`
+                  : 'Süre bitince ya da „Bitir“e basınca özet görünür.'}
+            </p>
           </div>
 
           <div className="mt-3">
