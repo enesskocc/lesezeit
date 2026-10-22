@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react';
 import { WordCard } from '../components/WordCard';
-import { lookup, type LookupHit } from '../lib/dict';
+import { lookup, suggest, type LookupHit } from '../lib/dict';
 
 type State =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'done'; query: string; hits: LookupHit[] }
+  | { kind: 'done'; query: string; hits: LookupHit[]; suggestions: string[] }
   | { kind: 'error'; message: string };
 
 const EXAMPLES = ['fing', 'Häusern', 'angefangen'];
+
+/**
+ * Characters of the typed text that are not letters, plain spaces, hyphens or apostrophes, as
+ * "U+2006". Shown when nothing was found, so a keyboard that slipped something in becomes visible.
+ */
+function oddCharacters(s: string): string[] {
+  const odd = [...s].filter((c) => c !== ' ' && !/[\p{L}\p{M}'’-]/u.test(c));
+  return [...new Set(odd.map((c) => `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`))];
+}
 
 export function Dictionary() {
   const [query, setQuery] = useState('');
@@ -25,7 +34,10 @@ export function Dictionary() {
     setState({ kind: 'loading' });
     const t = setTimeout(() => {
       lookup(q)
-        .then((hits) => !cancelled && setState({ kind: 'done', query: q, hits }))
+        .then(async (hits) => {
+          const suggestions = hits.length ? [] : await suggest(q).catch(() => []);
+          if (!cancelled) setState({ kind: 'done', query: q, hits, suggestions });
+        })
         .catch((e: unknown) => !cancelled && setState({ kind: 'error', message: e instanceof Error ? e.message : String(e) }));
     }, 250);
     return () => {
@@ -33,6 +45,8 @@ export function Dictionary() {
       clearTimeout(t);
     };
   }, [query]);
+
+  const odd = state.kind === 'done' && !state.hits.length ? oddCharacters(state.query) : [];
 
   return (
     <>
@@ -66,7 +80,26 @@ export function Dictionary() {
           </p>
         )}
         {state.kind === 'done' && state.hits.length === 0 && (
-          <p className="text-muted">„{state.query}“ sözlükte bulunamadı.</p>
+          <div data-testid="not-found">
+            <p className="text-muted">„{state.query}“ sözlükte bulunamadı.</p>
+            {odd.length > 0 && (
+              <p className="mt-1 text-sm text-muted">
+                Yazdığın metinde harf olmayan bir karakter var ({odd.join(', ')}). Silip yeniden yazmayı dene.
+              </p>
+            )}
+            {state.suggestions.length > 0 && (
+              <>
+                <p className="mt-3 text-sm font-semibold">Bunu mu demek istedin?</p>
+                <div className="mt-1.5 flex flex-wrap gap-2" role="group" aria-label="Öneriler">
+                  {state.suggestions.map((w) => (
+                    <button key={w} className="rounded-full border border-accent bg-accent-soft px-3 py-1.5 text-[14px] font-medium text-accent" lang="de" onClick={() => setQuery(w)}>
+                      {w}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         )}
         {state.kind === 'done' &&
           state.hits.map((h) => <WordCard key={`${h.entry.w}:${h.entry.p}`} entry={h.entry} form={state.query} />)}

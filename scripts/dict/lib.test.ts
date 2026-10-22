@@ -181,6 +181,10 @@ test('Windows-reserved shard names and NFC keys', () => {
   assert.equal(normalizeKey('brıngen'), 'bringen', 'Turkish dotless ı');
   assert.equal(normalizeKey('İst'), 'ist', 'Turkish dotted İ');
   assert.equal(normalizeKey('Ver­kehr'), 'verkehr', 'soft hyphen');
+  // Every Unicode format character (\p{Cf}), not only the few seen first (2026-10-23).
+  assert.equal(normalizeKey('‎vorbeikommen‏'), 'vorbeikommen', 'LRM / RLM direction marks');
+  assert.equal(normalizeKey('vorbei⁠kommen﻿'), 'vorbeikommen', 'word joiner, BOM');
+  assert.equal(normalizeKey('vorbeikommen '), 'vorbeikommen', 'six-per-em space from a keyboard suggestion');
   assert.equal(normalizeKey('Häuser'), 'häuser', 'decomposed umlaut');
 });
 

@@ -62,3 +62,34 @@ test('Turkish keyboard input: dotless ı and invisible characters still find the
     await expect(card.getByRole('heading')).toHaveText('mitbringen');
   }
 });
+
+// 2026-10-23, Enes: "vorbeikommen" not found on the iPhone although the dictionary has it.
+test('vorbeikommen is found, also with invisible direction marks', async ({ page }) => {
+  for (const q of ['vorbeikommen', '‎vorbeikommen‏']) {
+    const card = await search(page, q);
+    await expect(card.getByRole('heading')).toHaveText('vorbeikommen');
+    await expect(card).toContainText('kam vorbei');
+  }
+});
+
+test('nothing found: suggestions (split word, typo) and odd characters are shown', async ({ page }) => {
+  await page.goto('./#/sozluk');
+  const box = page.getByRole('searchbox', { name: 'Almanca kelime ara' });
+  const notFound = page.getByTestId('not-found');
+  const suggestions = page.getByRole('group', { name: 'Öneriler' });
+
+  // A keyboard suggestion split the word: the joined word is offered first; tapping it searches it.
+  await box.fill('vorbei kommen');
+  await expect(notFound).toContainText('„vorbei kommen“ sözlükte bulunamadı');
+  await expect(suggestions.getByRole('button').first()).toHaveText('vorbeikommen');
+  await suggestions.getByRole('button', { name: 'vorbeikommen' }).click();
+  await expect(box).toHaveValue('vorbeikommen');
+  await expect(page.locator('article').first().getByRole('heading')).toHaveText('vorbeikommen');
+
+  await box.fill('vorbeikomen'); // one letter missing
+  await expect(suggestions.getByRole('button', { name: 'vorbeikommen' })).toBeVisible();
+
+  await box.fill('vorbei·kommen'); // a character a keyboard could slip in
+  await expect(notFound).toContainText('U+00B7');
+  await expect(suggestions.getByRole('button', { name: 'vorbeikommen' })).toBeVisible();
+});

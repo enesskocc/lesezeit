@@ -112,6 +112,44 @@ async function lookupWith(m: LoadedManifest, query: string): Promise<LookupHit[]
   return hits.sort((a, b) => score(a) - score(b) || (a.entry.rank ?? Infinity) - (b.entry.rank ?? Infinity));
 }
 
+/** Edit distance, giving up early once it is certainly above `max`. */
+function distance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const next = [i];
+    for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j]! + 1, next[j - 1]! + 1, row[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    if (Math.min(...next) > max) return max + 1;
+    row = next;
+  }
+  return row[b.length]!;
+}
+
+/**
+ * Words to offer when a query found nothing (2026-10-23, Enes: "vorbeikommen" not found on the
+ * iPhone although the dictionary has it). First the query without spaces — a keyboard suggestion can
+ * split "vorbei kommen" — then lemmas of the same shard that start like it or are one or two letters
+ * off; more frequent words first.
+ */
+export async function suggest(query: string, max = 6): Promise<string[]> {
+  const key = normalizeKey(query);
+  if (!key) return [];
+  const m = await loadManifest();
+  const joined = key.replace(/ /g, '');
+  const found: { d: number; e: LemmaEntry }[] = [];
+  if (joined !== key) for (const h of await lookupWith(m, joined)) found.push({ d: -1, e: h.entry });
+  const prefix = shardFor(joined, m.lemmas);
+  if (prefix) {
+    const shard = (await loadShard('lemmas', prefix, m.manifest.lemmas[prefix]!)) as Record<string, LemmaEntry[]>;
+    for (const [k, entries] of Object.entries(shard)) {
+      const d = k.startsWith(joined) && k.length - joined.length <= 4 ? 0.5 : distance(k, joined, 2);
+      if (d <= 2) for (const e of entries) found.push({ d, e });
+    }
+  }
+  found.sort((a, b) => a.d - b.d || (a.e.rank ?? Infinity) - (b.e.rank ?? Infinity));
+  return [...new Set(found.map((f) => f.e.w))].filter((w) => normalizeKey(w) !== key).slice(0, max);
+}
+
 /**
  * form → lemma → grammar data. "Häusern" → Haus, "fing" → fangen, "angefangen" → anfangen.
  * Exact dictionary forms come first (same capitalisation before other), then inflected-form

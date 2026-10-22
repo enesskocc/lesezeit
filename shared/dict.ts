@@ -81,7 +81,7 @@ export function parseLemmaId(id: string): { w: string; p: PosCode; h?: number } 
 export function normalizeKey(s: string): string {
   return s
     .normalize('NFC')
-    .replace(/[​-‍⁠﻿­]/g, '')
+    .replace(/\p{Cf}/gu, '') // invisible format characters: zero-width space, soft hyphen, LRM/RLM, BOM…
     .replace(/[ıİ]/g, 'i')
     .trim()
     .replace(/\s+/g, ' ')
