@@ -55,6 +55,8 @@ _Last updated: 2026-10-22_
   - Code review (agency-agents Code Reviewer) fixed: cloze blanks by saved character positions (`contexts[].spans`; a repeated word no longer shows the answer), no "typo" for wrong endings or missing umlauts (macht/machte, Mutter/Mütter) and exact plurals, a queued second tap can't record an answer twice, one malformed card can't block the database upgrade, word-family answer time starts when the options appear, flashcard saves at its preview time (shown interval = stored interval), drills respect the review limit and don't count practice as new, a matching drill repeats with matching, limit fields save on blur.
   - Tests: `e2e/vocab.spec.ts` — ACCEPTANCE 10-minute mixed session with Playwright's clock (6 cards from the reader, flashcard → matching → cloze, due dates checked in IndexedDB), drill = practice, list/detail/delete/undo, milestone 5 → 6 database upgrade.
 
+- 2026-10-22 CI flake fixed: after "Kaydet ve test et" the app navigated before its live settings query had the new token, so "/" redirected back to setup (3 different E2E tests failed first try on the slower Linux runner). Setup now waits until App sees the token. Regression test `e2e/slow-db.spec.ts` delays settings reads by 300 ms (failed every time before the fix). CI uploads `playwright-traces` (failed/flaky attempts only, 7 days).
+
 ## Next
 1. Enes: iPhone test of M6 (steps in the chat), then milestone 7 (backup + coverage).
 2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
