@@ -191,6 +191,21 @@ async function main() {
   const ranks = rankLemmas(freq, (k) => [...(byLemmaKey.get(k) ?? []), ...(forms.get(k) ?? [])]);
   for (const [id, rank] of ranks) entries.get(id)!.rank = rank;
 
+  // Turkish meanings Claude wrote where de.wiktionary has none (scripts/dict/translate-tr.ts).
+  const TR_FILE = path.join(ROOT, 'scripts', 'dict', 'tr-claude.json');
+  if (existsSync(TR_FILE)) {
+    const extra = (JSON.parse(await fs.readFile(TR_FILE, 'utf8')) as { tr: Record<string, string[]> }).tr;
+    let added = 0;
+    for (const [id, tr] of Object.entries(extra)) {
+      const e = entries.get(id);
+      if (!e || e.tr?.length || !tr.length) continue;
+      e.tr = tr;
+      e.trAi = true;
+      added++;
+    }
+    console.log(`Turkish meanings from Claude: ${added.toLocaleString('de-DE')}`);
+  }
+
   // Shard maps.
   const byRank = (a: string, b: string) => (entries.get(a)?.rank ?? Infinity) - (entries.get(b)?.rank ?? Infinity);
   const lemmaMap = new Map<string, LemmaEntry[]>();

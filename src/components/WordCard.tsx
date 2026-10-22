@@ -57,7 +57,7 @@ export function WordCard({ entry: e, form }: { entry: LemmaEntry; form?: string 
 
       {e.tr && (
         <div className="mt-3 rounded-[10px] bg-accent-soft px-3 py-2.5">
-          <div className="label">Türkçe</div>
+          <div className="label">Türkçe{e.trAi && ' · yapay zekâ'}</div>
           <div className="text-[17px] font-semibold">{e.tr.join(', ')}</div>
         </div>
       )}

@@ -42,7 +42,8 @@ export const LemmaEntrySchema = z.object({
   rank: z.number().int().positive().optional(), // frequency rank, 1 = most frequent
   en: z.array(z.string()).optional(), // English glosses (en.wiktionary)
   de: z.string().optional(), // German definition (de.wiktionary), first sense
-  tr: z.array(z.string()).optional(), // Turkish translations (de.wiktionary)
+  tr: z.array(z.string()).optional(), // Turkish translations (de.wiktionary, or Claude when trAi)
+  trAi: z.boolean().optional(), // tr written by Claude (scripts/dict/tr-claude.json): Wiktionary had none
   syn: z.array(z.string()).optional(),
   ant: z.array(z.string()).optional(),
   fam: z.array(z.string()).optional(), // derived / related words for "word family"
