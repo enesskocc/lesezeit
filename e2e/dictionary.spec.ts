@@ -63,6 +63,16 @@ test('Turkish keyboard input: dotless ı and invisible characters still find the
   }
 });
 
+// 2026-10-23, Enes: no Turkish for schätzen, schämen, andere … (de.wiktionary has none); Claude filled them.
+test('Turkish meanings written by Claude are shown and labelled', async ({ page }) => {
+  const card = await search(page, 'schämen');
+  await expect(card).toContainText('utanmak');
+  await expect(card).toContainText('Türkçe · yapay zekâ');
+  const kommen = await search(page, 'kommen');
+  await expect(kommen).toContainText('gelmek');
+  await expect(kommen).not.toContainText('yapay zekâ'); // Wiktionary's own translation
+});
+
 // 2026-10-23, Enes: "vorbeikommen" not found on the iPhone although the dictionary has it.
 test('vorbeikommen is found, also with invisible direction marks', async ({ page }) => {
   for (const q of ['vorbeikommen', '‎vorbeikommen‏']) {

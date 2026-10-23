@@ -11,5 +11,5 @@ Sources:
   (https://github.com/hermitdave/FrequencyWords), OpenSubtitles 2018, CC BY-SA 4.0.
 
 Changes: entries were filtered, shortened, merged across both Wiktionaries, re-structured
-into lemma and inflected-form shards, and given frequency ranks. Built 2026-10-21
+into lemma and inflected-form shards, and given frequency ranks. Built 2026-10-23
 by scripts/dict/build.ts in https://github.com/enesskocc/lesezeit.
