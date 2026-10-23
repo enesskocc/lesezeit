@@ -59,6 +59,8 @@ _Last updated: 2026-10-22_
 
 - 2026-10-22 CI flake fixed: after "Kaydet ve test et" the app navigated before its live settings query had the new token, so "/" redirected back to setup (3 different E2E tests failed first try on the slower Linux runner). Setup now waits until App sees the token. Regression test `e2e/slow-db.spec.ts` delays settings reads by 300 ms (failed every time before the fix). CI uploads `playwright-traces` (failed/flaky attempts only, 7 days).
 
+- 2026-10-23 **Turkish meanings by Claude** (Enes: no Turkish for schätzen, schämen, andere …): de.wiktionary had Turkish for only ~40 % of frequent words. `scripts/dict/translate-tr.ts` (+ `prompts/dict-tr.md`) asks Claude Sonnet for 1–3 meanings per entry, 150 per call; it runs as lesezeit-data's **"Dictionary Turkish"** workflow (subscription token, resumable, stops at a usage limit, starts its next round itself, plus a **nightly round at 22:00 UTC** while words are left; checks out `main` so a queued round sees the latest file). Result in lesezeit-data `dict/tr-claude.json` → copy to `scripts/dict/tr-claude.json` → `npm run dict:build` merges it (`entry.trAi`, shown as "Türkçe · yapay zekâ"). State 2026-10-23: 7,730 meanings, ranks 1–13,000 now 92–97 % Turkish; ~13,700 entries up to rank 30,000 left (+ 211 that one answer skipped, e.g. schätzen — asked first next round). **To do when the nightly rounds are done:** copy the file again, rebuild, push.
+
 ## Next
 1. Enes: iPhone test of M6 (steps in the chat), then milestone 7 (backup + coverage).
 2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.

@@ -47,8 +47,9 @@ test('noun homographs get separate cards with their own article and meaning', as
   // Two noun cards, plus the verb "steuern" ("Steuer!" is its imperative).
   await expect(cards.filter({ has: page.getByRole('heading', { name: /^(der|die|das) Steuer$/ }) })).toHaveCount(2);
   await expect(cards.filter({ has: page.getByRole('heading', { name: 'steuern' }) })).toHaveCount(1);
-  await expect(cards.filter({ hasText: 'vergi' }).getByRole('heading')).toHaveText('die Steuer');
-  await expect(cards.filter({ hasText: 'direksiyon' }).getByRole('heading')).toHaveText('das Steuer');
+  // By heading, not by Turkish text: since 2026-10-23 "steuern" also has a Claude meaning "vergi ödemek".
+  await expect(cards.filter({ has: page.getByRole('heading', { name: 'die Steuer' }) })).toContainText('vergi');
+  await expect(cards.filter({ has: page.getByRole('heading', { name: 'das Steuer' }) })).toContainText('direksiyon');
 });
 
 test('words in the Windows-reserved "aux" shard load (aux~.json)', async ({ page }) => {
