@@ -7,6 +7,7 @@
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import type { Source, TextFile } from '../shared/texts.ts';
+import { readKnown } from './coverage.ts';
 import { FsDictionary } from './dict-fs.ts';
 import { extractArticle } from './extract.ts';
 import { Claude } from './claude.ts';
@@ -202,7 +203,10 @@ if (args.ai) {
       command: process.env.LESEZEIT_CLAUDE_CMD ? (JSON.parse(process.env.LESEZEIT_CLAUDE_CMD) as string[]) : undefined,
     });
     console.log(`\nAI phase (${config.claudeModel})`);
-    ai = await aiPhase({ repo, index, config, claude, dict, today });
+    // Known words from the phone's backup steer the pick toward the coverage band (milestone 7).
+    const known = readKnown(args.data!);
+    console.log(known ? `  backup: ${known.size} known words` : '  no backup/progress.json yet: pick by level and date only');
+    ai = await aiPhase({ repo, index, config, claude, dict, today, known });
     console.log(`  Claude calls: ${claude.calls}`);
   } catch (e) {
     log.errors.push(`AI phase: ${e instanceof Error ? e.message : String(e)}`);

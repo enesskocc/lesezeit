@@ -63,6 +63,8 @@ export const PipelineConfigSchema = z.object({
   levelCallsPerRun: z.number().int().nonnegative().default(4),
   /** Pool texts older than this are no longer picked. */
   poolDays: z.number().int().positive().default(7),
+  /** Known-word coverage the daily pick aims for (Enes, 2026-10-26: 95–99 %; spec: 90–98 %). */
+  coverageBand: z.tuple([z.number().min(0).max(1), z.number().min(0).max(1)]).default([0.95, 0.99]),
 });
 export type PipelineConfig = z.infer<typeof PipelineConfigSchema>;
 

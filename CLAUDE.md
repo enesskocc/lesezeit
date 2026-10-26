@@ -32,5 +32,6 @@ Private German reading + vocabulary PWA for Enes only. Never published to any st
 - 2026-10-15: Hash routing (`#/kurulum`) because Pages has no SPA fallback. Gemini key optional until milestone 8.
 - 2026-10-21 (Enes): **one Opus-annotated text per day**, B2/C1 in turn, pool of 4 fetched texts; app lists annotated texts only. Overrides the spec's "2 per level".
 - 2026-10-22 (Enes, after the iPhone test): vocabulary practice is **matching only** — no flashcard, cloze, artikel, production, word family or listen & type. Matching tiles are silent when tapped; German tiles have a 🔊 button; no sound toggle. FSRS learning steps 1m/5m/10m = three matching rounds (see PROGRESS M6).
+- 2026-10-26 (Enes): context-review text moves from M7 to M9 (generated text). Daily pick aims for **95–99 % known-word coverage** (`coverageBand` in pipeline.json) from `lesezeit-data/backup/progress.json`; the backup never contains the GitHub token or Gemini key.
 - Claude in CI: `claude -p` with `CLAUDE_CODE_OAUTH_TOKEN`; never `--bare`; never set `ANTHROPIC_API_KEY` (it would bill the API). Tests use `pipeline/testing/fake-claude.mjs`; `LESEZEIT_CLAUDE_CMD` (JSON array) swaps the binary, `LESEZEIT_FAKE_LIMIT_AFTER=N` forces a limit.
 - iOS: a home-screen PWA has storage separate from Safari → keys must be entered inside the installed app.

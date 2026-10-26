@@ -24,6 +24,8 @@ export interface Prefs {
   newPerDay: number; // spec: new cards per day, default 15
   maxReviews: number; // spec: max reviews per day, default 150
   sessionMinutes: number; // last chosen session length; 0 = "all due"
+  backupAt?: string; // last successful backup to lesezeit-data (ISO)
+  backupError?: string; // last failed backup, Turkish message (cleared on success)
 }
 export const DEFAULT_PREFS: Prefs = {
   id: 'main', guessMode: true, articleColors: false, ttsRate: 0.9, newPerDay: 15, maxReviews: 150, sessionMinutes: 10,

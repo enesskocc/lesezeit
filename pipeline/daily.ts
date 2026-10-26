@@ -4,6 +4,7 @@
 //    the target level, then annotate it fully. A limit stops everything and leaves a pending entry.
 import { LEVELS, type IndexEntry, type Level, type Pending, type PipelineConfig, type TextIndex } from '../shared/texts.ts';
 import { ClaudeFatalError, ClaudeLimitError, type Claude } from './claude.ts';
+import { coverageOf, coverageScore } from './coverage.ts';
 import type { FsDictionary } from './dict-fs.ts';
 import { enrich, levelText, stepsFor, type EnrichDeps } from './enrich.ts';
 import type { DataRepo } from './store.ts';
@@ -18,6 +19,8 @@ export interface AiPhaseDeps {
   claude: Claude;
   dict: FsDictionary;
   today: string;
+  /** Lemmas the learner knows, from backup/progress.json (milestone 7); null/absent = no backup. */
+  known?: ReadonlySet<string> | null;
 }
 
 export interface AiPhaseResult {
@@ -41,6 +44,23 @@ export function nextTarget(index: TextIndex, rotation: Level[]): Level {
   return rotation[(i + 1) % rotation.length]!;
 }
 
+/**
+ * The order in which pool texts are considered: level closest to today's target first; then, when
+ * the phone's backup is known, the text whose known-word coverage is closest to the band (spec
+ * step 7: a word marked known raises the coverage of the texts that use it); then the newest.
+ */
+export function orderPool(
+  pool: IndexEntry[],
+  target: Level,
+  coverage: (e: IndexEntry) => number | null,
+  band: readonly [number, number],
+): IndexEntry[] {
+  const distance = (e: IndexEntry) => Math.abs(levelIndex(e.level ?? e.levelHeuristic) - levelIndex(target));
+  return [...pool].sort(
+    (a, b) => distance(a) - distance(b) || coverageScore(coverage(a), band) - coverageScore(coverage(b), band) || (a.date < b.date ? 1 : -1),
+  );
+}
+
 /** Unannotated, not parked news texts from the last `poolDays` days, newest first. */
 export function poolOf(index: TextIndex, today: string, poolDays: number, exclude: Set<string>): IndexEntry[] {
   const cutoff = new Date(new Date(`${today}T00:00:00Z`).getTime() - poolDays * 86_400_000).toISOString().slice(0, 10);
@@ -48,7 +68,7 @@ export function poolOf(index: TextIndex, today: string, poolDays: number, exclud
 }
 
 export async function aiPhase(d: AiPhaseDeps): Promise<AiPhaseResult> {
-  const { repo, index, config, claude, dict, today } = d;
+  const { repo, index, config, claude, dict, today, known } = d;
   const result: AiPhaseResult = { annotated: [], leveled: [], parked: [] };
   const pending = repo.pending();
   const deps = (rel: string): EnrichDeps => ({
@@ -117,9 +137,18 @@ export async function aiPhase(d: AiPhaseDeps): Promise<AiPhaseResult> {
         console.log('  pool is empty — nothing to annotate today');
         break;
       }
-      const distance = (e: IndexEntry) => Math.abs(levelIndex(e.level ?? e.levelHeuristic) - levelIndex(target));
-      const ordered = [...pool].sort((a, b) => distance(a) - distance(b) || (a.date < b.date ? 1 : -1));
+      const covered = new Map<string, number | null>();
+      const coverage = (e: IndexEntry) => {
+        if (!known) return null;
+        if (!covered.has(e.id)) covered.set(e.id, coverageOf(repo.loadText(e.path).sentences.map((s) => s.t), dict, known));
+        return covered.get(e.id)!;
+      };
+      const ordered = orderPool(pool, target, coverage, config.coverageBand);
       console.log(`  target level ${target}; pool ${pool.length}`);
+      if (known) {
+        const pct = (e: IndexEntry) => (coverage(e) === null ? '–' : `${Math.round(coverage(e)! * 100)} %`);
+        console.log(`  known words ${known.size}; coverage ${ordered.map((e) => `${e.id} ${e.level ?? e.levelHeuristic} ${pct(e)}`).join(', ')}`);
+      }
 
       let chosen = ordered.find((e) => e.level === target);
       let leveledNow = 0;
@@ -139,9 +168,12 @@ export async function aiPhase(d: AiPhaseDeps): Promise<AiPhaseResult> {
         if (text.level === target) chosen = index.texts.find((t) => t.id === e.id);
       }
       // No exact match within the leveling budget: the closest AI-rated (else heuristic) text.
-      chosen ??= [...pool]
-        .map((e) => index.texts.find((t) => t.id === e.id)!)
-        .sort((a, b) => Number(!!b.level) - Number(!!a.level) || distance(a) - distance(b))[0];
+      chosen ??= orderPool(
+        pool.map((e) => index.texts.find((t) => t.id === e.id)!),
+        target,
+        coverage,
+        config.coverageBand,
+      ).sort((a, b) => Number(!!b.level) - Number(!!a.level))[0]; // stable: keeps level/coverage order
       if (!chosen) break;
       await finish(chosen.path, target, 0);
     }

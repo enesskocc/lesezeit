@@ -30,10 +30,10 @@ function explain(res: Response): string {
   return `GitHub beklenmeyen bir cevap verdi (HTTP ${res.status}).`;
 }
 
-async function send(token: string, path: string, accept: string, init: RequestInit = {}): Promise<Response> {
+async function send(token: string, path: string, accept: string, init: RequestInit = {}, timeoutMs = 12_000): Promise<Response> {
   try {
     // A weak mobile connection must not leave the app on "Yükleniyor…" forever.
-    return await fetch(`${API}${path}`, { ...init, headers: headers(token, accept), cache: 'no-store', signal: AbortSignal.timeout(12_000) });
+    return await fetch(`${API}${path}`, { ...init, headers: headers(token, accept), cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) });
   } catch {
     throw new GitHubError(0, 'GitHub’a bağlanılamadı. İnternet bağlantını kontrol et.');
   }
@@ -73,10 +73,43 @@ export async function checkDataRepoAccess(token: string): Promise<void> {
   throw new GitHubError(probe.status, explain(probe));
 }
 
+const contentsPath = (filePath: string) => `${repoPath}/contents/${filePath.split('/').map(encodeURIComponent).join('/')}`;
+
+/** Base64 of the UTF-8 bytes (btoa alone fails on "ä", "ş" …). */
+function base64Utf8(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/** Blob SHA of a file in lesezeit-data, null when it does not exist yet (needed to replace it). */
+async function fileSha(token: string, filePath: string): Promise<string | null> {
+  const res = await send(token, contentsPath(filePath), 'application/vnd.github+json');
+  if (res.status === 404) return null;
+  if (!res.ok) throw new GitHubError(res.status, explain(res));
+  return ((await res.json()) as { sha?: string }).sha ?? null;
+}
+
+/**
+ * Writes a JSON file to lesezeit-data as one commit. If the file changed in between (409, e.g. the
+ * daily workflow pushed), the SHA is read again once.
+ */
+export async function writeDataJson(token: string, filePath: string, data: unknown, message: string): Promise<void> {
+  const content = base64Utf8(JSON.stringify(data));
+  for (let attempt = 1; ; attempt++) {
+    const sha = await fileSha(token, filePath);
+    const body = JSON.stringify({ message, content, ...(sha ? { sha } : {}) });
+    const res = await send(token, contentsPath(filePath), 'application/vnd.github+json', { method: 'PUT', body }, 60_000);
+    if (res.ok) return;
+    if (res.status === 409 && attempt < 2) continue;
+    throw new GitHubError(res.status, explain(res));
+  }
+}
+
 /** Reads a JSON file from lesezeit-data. The raw media type skips base64 decoding. */
 export async function readDataJson(token: string, filePath: string): Promise<unknown> {
-  const encoded = filePath.split('/').map(encodeURIComponent).join('/');
-  const res = await request(token, `/repos/${DATA_OWNER}/${DATA_REPO}/contents/${encoded}`, 'application/vnd.github.raw+json');
+  const res = await request(token, contentsPath(filePath), 'application/vnd.github.raw+json');
   try {
     return await res.json();
   } catch {

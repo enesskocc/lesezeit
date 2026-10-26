@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-22_
+_Last updated: 2026-10-26_
 
 ## Done
 - **Milestone 1 — Setup ✅ accepted 2026-10-21** (installed on iPhone, test message shown)
@@ -48,7 +48,7 @@ _Last updated: 2026-10-22_
   - Word state is per lemma (`w:<lemma>`), expressions `m:<de>`; names (PROPN) count as ignored; separable prefix tokens are shown as their verb.
   - Tests: `e2e/reader.spec.ts` (ACCEPTANCE "an" → anfangen, colours, cards, guess "Hayır", questions/proof, finish), `e2e/offline.spec.ts` (ACCEPTANCE airplane mode with the service worker allowed).
 
-- **Milestone 6 — Vocabulary core (built 2026-10-22, waiting for iPhone OK)**
+- **Milestone 6 — Vocabulary core ✅ accepted 2026-10-26** (matching only, dictionary with Turkish meanings)
   - **iPhone feedback (Enes, 2026-10-22) — overrides the spec's exercise mix:** vocabulary practice is **matching only**. Flashcard, cloze, artikel & plural and production were removed (code deleted; cards still store `contexts[].forms/spans`). New words go straight into matching rounds: a session is a series of rounds of up to 6 rated cards (filled to 5–6 pairs), a new card meets 3 rounds (5 min → 10 min → days). Later the same day the **word family was removed too** and the **sound toggle** with it (nothing plays by itself any more; the 🔊 button is always shown where the device can speak — with the toggle off it had been hidden, which is why Enes could not see it). In matching, **tapping a tile only selects it**. Matching redesign: aligned rows, larger tiles, progress bar "3/6 · time", ✓/scale on a match, shake on a wrong pair, and the wrongly matched pairs listed with their right partner after the round. "Serbest eşleştirme" (`#/kelimeler/oturum?serbest=1`) = free practice. Fewer than 5 matchable cards → no session ("En az 5 kart gerekli").
   - Decisions (Enes, 2026-10-21): **no "listen & type"** (left out of the composer too); **production** added now; verb forms + synonym/antonym → M10, own sentence → M8; **word family rule-based** (stem + known suffix from the dictionary's `fam`, invented distractors with wrong suffixes, checked against the dictionary before showing); **Nomen↔Verb / Verb↔Präp. matching** filled with expressions from downloaded texts as unrated pairs; **flashcard self-rating with 4 buttons + next interval**.
   - FSRS: `ts-fsrs` 5.4.2, learning steps **1m / 5m / 10m** (Good → 5 min → 10 min → days, so a new card meets flashcard → matching → cloze in one session), relearning 10m, fuzz on, mature ≥ 21 days, day starts 04:00. Rating: wrong = Again, slow (> 10 s tap / 20 s typing) or hint or typo or wrong article = Hard, correct = Good, fast on mature = Easy. A mature card reads as "known" in the reader; a lapse makes it yellow again.
@@ -61,14 +61,22 @@ _Last updated: 2026-10-22_
 
 - 2026-10-23 **Turkish meanings by Claude** (Enes: no Turkish for schätzen, schämen, andere …): de.wiktionary had Turkish for only ~40 % of frequent words. `scripts/dict/translate-tr.ts` (+ `prompts/dict-tr.md`) asks Claude Sonnet for 1–3 meanings per entry, 150 per call; it runs as lesezeit-data's **"Dictionary Turkish"** workflow (subscription token, resumable, stops at a usage limit, starts its next round itself, plus a **nightly round at 22:00 UTC** while words are left; checks out `main` so a queued round sees the latest file). Result in lesezeit-data `dict/tr-claude.json` → copy to `scripts/dict/tr-claude.json` → `npm run dict:build` merges it (`entry.trAi`, shown as "Türkçe · yapay zekâ"). State 2026-10-24: 20,856 meanings, ranks 1–30,000 now 95–97 % Turkish (schätzen → tahmin etmek, takdir etmek, değerlendirmek); 148 entries left after a session limit — the nightly round finishes them, then copy the file once more, rebuild, push. The rest of the gap are entries Claude left empty on purpose (articles, names, abbreviations).
 
+- **Milestone 7 — Backup and coverage (built 2026-10-26, waiting for iPhone OK)**
+  - Decisions (Enes, 2026-10-26): the **context-review text moves to M9** (it is a generated text, built with M9's generator + validator); **coverage band 95–99 %** (spec: 90–98 %), the pick aims for the middle (97 %).
+  - **Phone → backup:** `src/lib/backup.ts` writes `lesezeit-data/backup/progress.json` (schema `shared/backup.ts`: word colours, cards with FSRS state, review log, reading log, settings). Never the GitHub token or Gemini key (they live in `settings`, not in `prefs`). The previous file is kept as `progress.prev.json`. Automatic: every change to the four learning tables schedules a backup 30 s after the last change, at most every 10 minutes; on app start it catches up on changes since the last backup (iOS may close the app before the timer). Writes go through `writeDataJson` (`src/lib/github.ts`: PUT with the file's sha, one retry on 409 if the daily workflow pushed in between).
+  - **Ayarlar → Yedek:** "Son yedek: … önce", the last error, "Şimdi yedekle", "Yedekten geri yükle" (asks first; replaces cards, word colours, history and settings on this phone; keys and downloaded texts stay).
+  - **Backup → daily pick:** `pipeline/coverage.ts` reads the backup; a lemma counts as known if marked "Biliyorum"/"Yok say" or a mature card (≥ 21 days). Coverage = share of a text's dictionary words with a known lemma (names and unknown words count neither way). `orderPool` sorts the pool by level distance → coverage score (inside the band: distance from the middle; outside: worse) → newest. Without a backup the pick is as before. The run log prints each candidate's coverage. Setting `coverageBand` in `pipeline.json`.
+  - Bug found by the new E2E test: the backup timer was never set, because the Dexie hook read `prefs` inside the word table's transaction — now read with `Dexie.ignoreTransaction`.
+  - Tests: `pipeline/coverage.test.ts` (ACCEPTANCE: marking "gemeinsam" known moves the pick from text B to text A), `e2e/backup.spec.ts` (manual backup without keys + prev file, automatic backup with Playwright's clock 30 s / 10 min, ACCEPTANCE delete the database → restore → cards, colours and settings back, no extra backup).
+
 ## Next
-1. Milestone 7 — backup + coverage. List files + decisions first.
+1. iPhone test of milestone 7, then milestone 8 — writing and live AI. List files + decisions first.
 2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
-2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
+3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
 - M3 heuristic "share of words outside the 5,000 most frequent lemmas": ranks come from subtitles (spoken German), so formal news words rank lower than in a news corpus — cuts were calibrated on real news texts, so this is accounted for.
-- Day picks: spec step 7 (2 per level, coverage 90–98 %) is replaced by Enes' one-text-per-day B2/C1 rotation; known-word coverage (M7) can later choose among same-level candidates.
+- Day picks: spec step 7 (2 per level, coverage 90–98 %) is replaced by Enes' one-text-per-day B2/C1 rotation; since M7 known-word coverage (95–99 %) chooses among same-level candidates. Until the phone has backed up many words, every text is far below the band, so the pick is "closest to the band", i.e. the easiest.
 - DLF's Nachrichten feed is mostly < 250-word bulletins (rejected as "short"); consider adding DLF background feeds later.
 - `state/last-run.json` changes every run, so the data repo gets one commit per day even without new texts (harmless).
 - Dictionary quality notes: synonyms/antonyms only from senses 1–2 (no fallback — Wiktionary often lists them only for rare senses); Turkish translations prefer sense 1, else any sense; Rektion only where en.wiktionary glosses say "with X (+ case)". Verb homographs (e.g. separable vs. inseparable "umfahren") are still merged.

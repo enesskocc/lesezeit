@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
 import { FatalScreen } from './components/ErrorBoundary';
+import { startAutoBackup, stopAutoBackup } from './lib/backup';
 import { db, getPrefs } from './lib/db';
 import { CardDetail } from './screens/CardDetail';
 import { Dictionary } from './screens/Dictionary';
@@ -41,9 +42,16 @@ export default function App() {
     return () => clearTimeout(t);
   }, [settings]);
 
+  // Progress backup to lesezeit-data whenever the learning state changes (milestone 7).
+  const githubToken = settings?.githubToken;
+  useEffect(() => {
+    if (githubToken) void startAutoBackup(githubToken);
+    else stopAutoBackup();
+  }, [githubToken]);
+
   if (settings === null) return dbStuck ? <FatalScreen detail="IndexedDB açılamadı." /> : null;
 
-  const token = settings?.githubToken;
+  const token = githubToken;
   const needToken = <Navigate to="/kurulum" replace />;
   return (
     <HashRouter>

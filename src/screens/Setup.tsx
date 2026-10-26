@@ -2,7 +2,10 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DATA_OWNER, DATA_REPO } from '../config';
+import { backupNow, restoreBackup } from '../lib/backup';
 import { clearKeys, DEFAULT_PREFS, getPrefs, saveKeys, setPrefs, type Settings } from '../lib/db';
+import { checkDataRepoAccess } from '../lib/github';
+import { formatInterval } from '../lib/srs';
 
 /** A daily limit: typed freely, saved on blur; an empty or invalid field keeps the saved value. */
 function LimitField({ label, value, max, onSave }: { label: string; value: number; max: number; onSave: (n: number) => void }) {
@@ -39,7 +42,69 @@ function VocabSettings() {
     </section>
   );
 }
-import { checkDataRepoAccess } from '../lib/github';
+
+/** Spec "Backup and sync": when the last backup was made, back up now, restore on a new phone. */
+function BackupSettings({ token }: { token: string }) {
+  const prefs = useLiveQuery(getPrefs, [], DEFAULT_PREFS);
+  const [busy, setBusy] = useState<'backup' | 'restore' | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000); // keep "… önce" current
+    return () => clearInterval(t);
+  }, []);
+
+  const ago = (iso: string) => {
+    const ms = Date.now() - Date.parse(iso);
+    return ms < 60_000 ? 'az önce' : `${formatInterval(ms)} önce`;
+  };
+  const run = async (kind: 'backup' | 'restore') => {
+    if (kind === 'restore' && !window.confirm('Bu telefondaki kelimeler, kartlar ve geçmiş yedektekilerle değiştirilecek. Devam edilsin mi?')) return;
+    setBusy(kind);
+    setMessage(null);
+    try {
+      if (kind === 'backup') {
+        await backupNow(token);
+        setMessage('Yedeklendi.');
+      } else {
+        const r = await restoreBackup(token);
+        setMessage(`Geri yüklendi: ${r.cards} kart, ${r.words} kelime durumu.`);
+      }
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section className="card mt-4 flex flex-col gap-3" aria-label="Yedek">
+      <span className="label">Yedek</span>
+      <p className="text-sm text-muted" data-testid="backup-status">
+        {prefs.backupAt ? `Son yedek: ${ago(prefs.backupAt)}.` : 'Henüz yedeklenmedi.'} İlerlemen her değişiklikten sonra otomatik olarak{' '}
+        {DATA_REPO} reposuna yedeklenir (en fazla 10 dakikada bir).
+      </p>
+      {prefs.backupError && !busy && (
+        <p className="text-sm text-bad" role="alert">
+          Son yedekleme başarısız: {prefs.backupError}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button className="btn" disabled={busy !== null} onClick={() => void run('backup')}>
+          {busy === 'backup' ? 'Yedekleniyor…' : 'Şimdi yedekle'}
+        </button>
+        <button className="btn" disabled={busy !== null} onClick={() => void run('restore')}>
+          {busy === 'restore' ? 'Geri yükleniyor…' : 'Yedekten geri yükle'}
+        </button>
+      </div>
+      {message && (
+        <p className="text-sm" role="status">
+          {message}
+        </p>
+      )}
+    </section>
+  );
+}
 
 // On iOS a home-screen app has its own storage, separate from Safari.
 // Keys typed in Safari would not be visible after "Add to Home Screen".
@@ -160,6 +225,7 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
       )}
 
       {existing && <VocabSettings />}
+      {existing && <BackupSettings token={existing.githubToken} />}
 
       <Link to="/lisanslar" className="mt-6 block text-sm text-muted underline">
         Lisanslar ve kaynaklar

@@ -205,7 +205,7 @@ Build in this order; each milestone ends with something usable on the phone and 
 4. **Claude in the pipeline.** OAuth token secret, leveling, full annotation, questions, limit handling. *Done when:* a run produces annotated texts and a forced limit error leaves a correct `pending` list.
 5. **Reader.** Home list, reading view, word sheet from annotations + dictionary, coloring, guess mode, sentence sheet, TTS, questions, offline cache. *Done when:* tapping "an" in "Er fängt morgen an" opens anfangen, and a downloaded text opens in airplane mode.
 6. **Vocabulary core.** Cards with context sentences, FSRS, flashcards, matching (all modes, with audio), artikel & plural, cloze, word family. *Done when:* a 10-minute mixed session runs and due dates update correctly.
-7. **Backup and coverage.** Progress backup, restore, coverage-based picks, context-review text. *Done when:* a word marked known on the phone lowers its weight in the next day's picks.
+7. **Backup and coverage.** Progress backup, restore, coverage-based picks (Enes 2026-10-26: band 95–99 %; the context-review text moved to milestone 9). *Done when:* a word marked known on the phone lowers its weight in the next day's picks.
 8. **Writing and live AI.** Own sentence, summary feedback, "Neden böyle?" via Gemini. *Done when:* a wrong summary sentence comes back with the error marked and explained in Turkish.
-9. **Generated and imported texts.** `inbox/` requests, generator + validator. *Done when:* a requested B2 text with 5 target words appears within 10 minutes.
+9. **Generated and imported texts.** `inbox/` requests, generator + validator, context-review text from due cards (moved from milestone 7). *Done when:* a requested B2 text with 5 target words appears within 10 minutes.
 10. **Polish.** Stats, weekly progress, settings, dark mode.
