@@ -61,12 +61,19 @@ export const ANSWER_JSON_SCHEMA = {
  * three, each 1–40 characters without brackets or digits. Ids missing from the answer stay untried.
  */
 export function acceptAnswer(batch: LemmaEntry[], answer: Answer): Map<string, string[]> {
-  const ids = new Set(batch.map(lemmaId));
+  // Ids are matched leniently (2026-10-26: one batch came back with ids Claude had rewritten, and
+  // the same 148 words were asked every night): Unicode-normalised, or the bare word when it is
+  // unique in the batch ("eckig" for "eckig:a").
+  const key = (s: string) => s.normalize('NFC').trim();
+  const byId = new Map(batch.map((e) => [key(lemmaId(e)), lemmaId(e)]));
+  const byWord = new Map<string, string | null>();
+  for (const e of batch) byWord.set(key(e.w), byWord.has(key(e.w)) ? null : lemmaId(e));
   const out = new Map<string, string[]>();
   for (const item of answer.items) {
-    if (!ids.has(item.id) || out.has(item.id)) continue;
+    const id = byId.get(key(item.id)) ?? byWord.get(key(item.id).replace(/:[^:]*(:\d+)?$/, ''));
+    if (!id || out.has(id)) continue;
     const tr = [...new Set(item.tr.map((t) => t.trim().replace(/\s+/g, ' ')))].filter((t) => t.length >= 1 && t.length <= 40 && !/[()[\]{}\d]/.test(t));
-    out.set(item.id, tr.slice(0, 3));
+    out.set(id, tr.slice(0, 3));
   }
   return out;
 }
@@ -116,9 +123,14 @@ async function main() {
     const batch = todo.slice(i, i + batchSize);
     try {
       const answer = await claude.json(`tr batch ${i / batchSize + 1}`, system, `Entries:\n${batch.map(promptLine).join('\n')}`, ANSWER_JSON_SCHEMA, AnswerSchema);
-      for (const [id, tr] of acceptAnswer(batch, answer)) {
+      const accepted = acceptAnswer(batch, answer);
+      for (const [id, tr] of accepted) {
         overlay.tr[id] = tr;
         if (tr.length) added++;
+      }
+      if (accepted.size < batch.length) {
+        const sample = answer.items.slice(0, 3).map((i) => JSON.stringify(i.id)).join(', ');
+        console.log(`  batch ${i / batchSize + 1}: ${batch.length - accepted.size} of ${batch.length} words not in the answer (answer ids e.g. ${sample})`);
       }
       save(out, overlay);
       console.log(`  batch ${i / batchSize + 1}: ${batch[0]!.w} … ${batch.at(-1)!.w} (rank ${batch[0]!.rank}–${batch.at(-1)!.rank}) done`);

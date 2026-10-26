@@ -62,7 +62,8 @@ _Last updated: 2026-10-22_
 - 2026-10-23 **Turkish meanings by Claude** (Enes: no Turkish for schätzen, schämen, andere …): de.wiktionary had Turkish for only ~40 % of frequent words. `scripts/dict/translate-tr.ts` (+ `prompts/dict-tr.md`) asks Claude Sonnet for 1–3 meanings per entry, 150 per call; it runs as lesezeit-data's **"Dictionary Turkish"** workflow (subscription token, resumable, stops at a usage limit, starts its next round itself, plus a **nightly round at 22:00 UTC** while words are left; checks out `main` so a queued round sees the latest file). Result in lesezeit-data `dict/tr-claude.json` → copy to `scripts/dict/tr-claude.json` → `npm run dict:build` merges it (`entry.trAi`, shown as "Türkçe · yapay zekâ"). State 2026-10-24: 20,856 meanings, ranks 1–30,000 now 95–97 % Turkish (schätzen → tahmin etmek, takdir etmek, değerlendirmek); 148 entries left after a session limit — the nightly round finishes them, then copy the file once more, rebuild, push. The rest of the gap are entries Claude left empty on purpose (articles, names, abbreviations).
 
 ## Next
-1. Enes: iPhone test of M6 (steps in the chat), then milestone 7 (backup + coverage).
+1. Milestone 7 — backup + coverage. List files + decisions first.
+2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
 2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions

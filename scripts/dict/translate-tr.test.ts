@@ -41,3 +41,17 @@ test('answers: only ids of the batch, cleaned meanings, at most three', () => {
     ['schämen:v', ['utanmak']],
   ]);
 });
+
+test('answers: ids Claude rewrote (decomposed umlaut, missing part of speech) still match', () => {
+  const eckig: LemmaEntry = { w: 'eckig', p: 'a', rank: 27_000 };
+  const got = acceptAnswer([schaetzen, eckig], {
+    items: [
+      { id: 'schätzen:v', tr: ['tahmin etmek'] }, // NFD "ä"
+      { id: 'eckig', tr: ['köşeli'] }, // bare word, unique in the batch
+    ],
+  });
+  assert.deepEqual([...got], [
+    ['schätzen:v', ['tahmin etmek']],
+    ['eckig:a', ['köşeli']],
+  ]);
+});
