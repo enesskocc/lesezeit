@@ -80,10 +80,11 @@ _Last updated: 2026-10-27_
   - Tests: `src/lib/stats.test.ts` (day boundary 04:00, DST change on 25 Oct, practice, retention, streak, weeks), `e2e/polish.spec.ts` (stats screen with synthetic history, display settings applied to the reader and kept after reload, no Gemini field), `e2e/vocab.spec.ts` migration test now also checks that an old Gemini key is deleted.
   - Note: on a heavily loaded PC the full E2E suite can fail with "browser has been closed" / slow clicks; `npx playwright test --workers 1` passes (37/37). CI retries once.
 
+- 2026-10-27 Dictionary rebuilt with the last Turkish meanings: the nightly round finished ("left=0"), 148 more entries → **21,002 meanings from Claude** in the shards (2 left empty on purpose). The "Dictionary Turkish" workflow has nothing left to do, but its nightly schedule (22:00 UTC) keeps running: about a minute of Actions time per night, no Claude call.
+
 ## Next
 1. All milestones are done (M8 and M9 cancelled by Enes).
-2. Dictionary: the nightly round of 2026-10-27 finished the last entries ("left=0"): lesezeit-data has 21,873 Turkish meanings, the app 21,725. Copy `dict/tr-claude.json`, `npm run dict:build`, push (adds ~14 MB to git history; Enes decides).
-3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
+2. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
 - M3 heuristic "share of words outside the 5,000 most frequent lemmas": ranks come from subtitles (spoken German), so formal news words rank lower than in a news corpus — cuts were calibrated on real news texts, so this is accounted for.
