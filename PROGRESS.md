@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-26_
+_Last updated: 2026-10-27_
 
 ## Done
 - **Milestone 1 — Setup ✅ accepted 2026-10-21** (installed on iPhone, test message shown)
@@ -73,7 +73,7 @@ _Last updated: 2026-10-26_
 
 - **Milestone 9 — Generated and imported texts: cancelled 2026-10-27 (Enes).** No requested AI texts, no import (paste/URL), no daily context-review text. The schema keeps `kind` (news / generated / imported / review) but only news texts are produced.
 
-- **Milestone 10 — Polish (built 2026-10-27, waiting for iPhone OK)**
+- **Milestone 10 — Polish ✅ accepted 2026-10-27**
   - Decisions (Enes, 2026-10-27): **no weekly progress row** on the home screen; display settings **only in Ayarlar**; **dark mode follows the system** (no theme setting); the unused **Gemini key field is removed** (Dexie v4 deletes a key saved earlier). "Translation hidden until tapped" needs no setting: the reader already shows translations only in the sentence sheet.
   - **İstatistikler** (`#/istatistik`, "İstatistikler →" on Kelimeler): streak, retention, reviews today, cards by state (yeni / öğreniliyor / genç / olgun), reviews per day (30 days) and words read per week (8 weeks) as single-series column charts; tapping a column shows its value, "Tablo" lists all values. Pure functions in `src/lib/stats.ts`: learning days start at 04:00 (like the limits); free practice is not a review but keeps the streak; retention = Hard/Good/Easy share of reviews of graduated cards (state Review before the answer) in 30 days. Finished readings now store `words`; older rows take the word count from the cached text.
   - **Ayarlar → Görünüm**: reading text size (16 / 19 / 22 / 25 px), line height (1.5 / 1.75 / 2.05), Serif (Literata) / Sans (Figtree), with a live sample (`src/lib/look.ts`). Shared `.chip` style in `index.css`.
@@ -81,8 +81,8 @@ _Last updated: 2026-10-26_
   - Note: on a heavily loaded PC the full E2E suite can fail with "browser has been closed" / slow clicks; `npx playwright test --workers 1` passes (37/37). CI retries once.
 
 ## Next
-1. iPhone test of milestone 10. After that all milestones are done.
-2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
+1. All milestones are done (M8 and M9 cancelled by Enes).
+2. Dictionary: the nightly round of 2026-10-27 finished the last entries ("left=0"): lesezeit-data has 21,873 Turkish meanings, the app 21,725. Copy `dict/tr-claude.json`, `npm run dict:build`, push (adds ~14 MB to git history; Enes decides).
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
 ## Open questions
