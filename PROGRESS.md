@@ -61,7 +61,7 @@ _Last updated: 2026-10-26_
 
 - 2026-10-23 **Turkish meanings by Claude** (Enes: no Turkish for schätzen, schämen, andere …): de.wiktionary had Turkish for only ~40 % of frequent words. `scripts/dict/translate-tr.ts` (+ `prompts/dict-tr.md`) asks Claude Sonnet for 1–3 meanings per entry, 150 per call; it runs as lesezeit-data's **"Dictionary Turkish"** workflow (subscription token, resumable, stops at a usage limit, starts its next round itself, plus a **nightly round at 22:00 UTC** while words are left; checks out `main` so a queued round sees the latest file). Result in lesezeit-data `dict/tr-claude.json` → copy to `scripts/dict/tr-claude.json` → `npm run dict:build` merges it (`entry.trAi`, shown as "Türkçe · yapay zekâ"). State 2026-10-24: 20,856 meanings, ranks 1–30,000 now 95–97 % Turkish (schätzen → tahmin etmek, takdir etmek, değerlendirmek); 148 entries left after a session limit — the nightly round finishes them, then copy the file once more, rebuild, push. The rest of the gap are entries Claude left empty on purpose (articles, names, abbreviations).
 
-- **Milestone 7 — Backup and coverage (built 2026-10-26, waiting for iPhone OK)**
+- **Milestone 7 — Backup and coverage ✅ accepted 2026-10-27**
   - Decisions (Enes, 2026-10-26): the **context-review text moves to M9** (it is a generated text, built with M9's generator + validator); **coverage band 95–99 %** (spec: 90–98 %), the pick aims for the middle (97 %).
   - **Phone → backup:** `src/lib/backup.ts` writes `lesezeit-data/backup/progress.json` (schema `shared/backup.ts`: word colours, cards with FSRS state, review log, reading log, settings). Never the GitHub token or Gemini key (they live in `settings`, not in `prefs`). The previous file is kept as `progress.prev.json`. Automatic: every change to the four learning tables schedules a backup 30 s after the last change, at most every 10 minutes; on app start it catches up on changes since the last backup (iOS may close the app before the timer). Writes go through `writeDataJson` (`src/lib/github.ts`: PUT with the file's sha, one retry on 409 if the daily workflow pushed in between).
   - **Ayarlar → Yedek:** "Son yedek: … önce", the last error, "Şimdi yedekle", "Yedekten geri yükle" (asks first; replaces cards, word colours, history and settings on this phone; keys and downloaded texts stay).
@@ -69,8 +69,10 @@ _Last updated: 2026-10-26_
   - Bug found by the new E2E test: the backup timer was never set, because the Dexie hook read `prefs` inside the word table's transaction — now read with `Dexie.ignoreTransaction`.
   - Tests: `pipeline/coverage.test.ts` (ACCEPTANCE: marking "gemeinsam" known moves the pick from text B to text A), `e2e/backup.spec.ts` (manual backup without keys + prev file, automatic backup with Playwright's clock 30 s / 10 min, ACCEPTANCE delete the database → restore → cards, colours and settings back, no extra backup).
 
+- **Milestone 8 — Writing and live AI: cancelled 2026-10-27 (Enes).** No own sentence, no summary feedback, no "Neden böyle?" — so no Gemini (it was only needed for instant answers on the phone; a Claude-workflow version with 1–3 min answers was offered and declined too). The disabled "Neden böyle?" button was removed from the sentence sheet. AI meanings for words the dictionary lacks → later (M10).
+
 ## Next
-1. iPhone test of milestone 7, then milestone 8 — writing and live AI. List files + decisions first.
+1. Milestone 9 — generated and imported texts (+ context-review text from M7). List files + decisions first.
 2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 

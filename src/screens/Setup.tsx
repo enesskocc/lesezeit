@@ -204,7 +204,7 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
             value={gemini}
             onChange={(e) => setGemini(e.target.value)}
           />
-          <span className="text-[12.5px] text-muted">Canlı yapay zekâ soruları için. 8. aşamaya kadar boş bırakabilirsin.</span>
+          <span className="text-[12.5px] text-muted">Şu an hiçbir özellik kullanmıyor; boş bırakabilirsin.</span>
         </label>
 
         {error && (

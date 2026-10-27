@@ -2,7 +2,7 @@ import type { TextFile } from '../../../shared/texts';
 import { canSpeak, speakGerman } from '../../lib/speech';
 import { BottomSheet } from './BottomSheet';
 
-/** Spec "Tap a sentence": Turkish translation, structure notes, pronounce, "Neden böyle?" (M8). */
+/** Spec "Tap a sentence": Turkish translation, structure notes, pronounce ("Neden böyle?" dropped, Enes 2026-10-27). */
 export function SentenceSheet({ text, s, rate, onClose }: { text: TextFile; s: number; rate: number; onClose: () => void }) {
   const sent = text.sentences[s]!;
   return (
@@ -21,17 +21,13 @@ export function SentenceSheet({ text, s, rate, onClose }: { text: TextFile; s: n
           </div>
         </>
       )}
-      <div className="mt-3.5 flex flex-wrap gap-2">
-        {canSpeak() && (
+      {canSpeak() && (
+        <div className="mt-3.5 flex flex-wrap gap-2">
           <button className="btn" onClick={() => speakGerman(sent.t, rate)}>
             🔊 Cümleyi dinle
           </button>
-        )}
-        <button className="btn" disabled title="8. aşamada (Gemini) gelecek">
-          Neden böyle?
-        </button>
-      </div>
-      <p className="mt-2 text-xs text-muted">„Neden böyle?“ sorusu yapay zekâya 8. aşamada bağlanacak.</p>
+        </div>
+      )}
     </BottomSheet>
   );
 }

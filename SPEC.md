@@ -100,13 +100,13 @@ The reader shows German text with every word tappable, colors words by how well 
 
 **Tap a sentence (long-press or sentence button)**
 - Turkish translation, structure breakdown (main clause / Nebensatz, verb position, passive, Konjunktiv II, Partizip-Attribute), pronounce sentence.
-- "Neden böyle?" opens a free-form Turkish question to the AI about that sentence.
+- ~~"Neden böyle?" opens a free-form Turkish question to the AI about that sentence.~~ Dropped (Enes, 2026-10-27).
 
 **Audio:** browser speechSynthesis with a de-DE voice, sentence-by-sentence with the current sentence highlighted, speed 0.7×–1.2×.
 
 **After reading**
 1. Comprehension questions with instant check and the proving sentence highlighted.
-2. Optional summary: user writes 3–5 German sentences; AI returns errors marked red/green with Turkish explanations and a corrected version. Errors use a fixed category list (Artikel, Kasus, Verbstellung, Konjugation, Adjektivendung, Präposition, Rechtschreibung, Wortwahl, Sonstiges).
+2. ~~Optional summary~~ (dropped, Enes 2026-10-27): user writes 3–5 German sentences; AI returns errors marked red/green with Turkish explanations and a corrected version. Errors use a fixed category list (Artikel, Kasus, Verbstellung, Konjugation, Adjektivendung, Präposition, Rechtschreibung, Wortwahl, Sonstiges).
 3. Stats saved: reading time, new words added, score.
 
 **Guess mode (setting, default on):** tapping a new or learning word first shows only the word inside its sentence and asks the user to guess the meaning. "Anlamı göster" reveals the full word sheet with "Tahminin doğru muydu?" (Evet / Hayır). Hayır adds the word to the cards with this sentence as context; known words skip guess mode.
@@ -206,6 +206,6 @@ Build in this order; each milestone ends with something usable on the phone and 
 5. **Reader.** Home list, reading view, word sheet from annotations + dictionary, coloring, guess mode, sentence sheet, TTS, questions, offline cache. *Done when:* tapping "an" in "Er fängt morgen an" opens anfangen, and a downloaded text opens in airplane mode.
 6. **Vocabulary core.** Cards with context sentences, FSRS, flashcards, matching (all modes, with audio), artikel & plural, cloze, word family. *Done when:* a 10-minute mixed session runs and due dates update correctly.
 7. **Backup and coverage.** Progress backup, restore, coverage-based picks (Enes 2026-10-26: band 95–99 %; the context-review text moved to milestone 9). *Done when:* a word marked known on the phone lowers its weight in the next day's picks.
-8. **Writing and live AI.** Own sentence, summary feedback, "Neden böyle?" via Gemini. *Done when:* a wrong summary sentence comes back with the error marked and explained in Turkish.
+8. ~~**Writing and live AI.** Own sentence, summary feedback, "Neden böyle?" via Gemini.~~ **Cancelled (Enes, 2026-10-27):** no own sentence, no summary feedback, no "Neden böyle?"; Gemini is not used. Missing-word meanings by AI → later (M10).
 9. **Generated and imported texts.** `inbox/` requests, generator + validator, context-review text from due cards (moved from milestone 7). *Done when:* a requested B2 text with 5 target words appears within 10 minutes.
 10. **Polish.** Stats, weekly progress, settings, dark mode.
