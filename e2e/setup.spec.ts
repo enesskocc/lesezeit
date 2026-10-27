@@ -147,7 +147,7 @@ test('deleting keys returns to setup', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Bugün' })).toBeVisible();
   await page.getByRole('link', { name: 'Ayarlar' }).click();
   page.once('dialog', (d) => void d.accept());
-  await page.getByRole('button', { name: 'Anahtarları bu cihazdan sil' }).click();
+  await page.getByRole('button', { name: 'Token’ı bu cihazdan sil' }).click();
   await page.getByRole('link', { name: 'Bugün' }).waitFor({ state: 'detached' });
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Kurulum' })).toBeVisible();

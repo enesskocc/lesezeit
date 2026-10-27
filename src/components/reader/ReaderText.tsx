@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type CSSProperties } from 'react';
 import { ARTICLE } from '../../../shared/dict';
 import type { TextFile, Token } from '../../../shared/texts';
 import type { WordState } from '../../lib/db';
@@ -13,6 +13,7 @@ interface Props {
   text: TextFile;
   states: Map<string, WordState>;
   articleColors: boolean;
+  look: CSSProperties; // font size, line height, family (Ayarlar → Görünüm)
   highlight?: Highlight; // tokens of the open word sheet (word + separable partner / expression)
   speaking?: number; // sentence being read aloud
   proof?: number; // sentence that proves a question's answer
@@ -90,7 +91,8 @@ export const ReaderText = memo(function ReaderText(p: Props) {
     <div
       id="reader-text"
       lang="de"
-      className={`mt-2.5 flex flex-col gap-4 rounded-[14px] border border-line bg-surface px-4 py-[18px] font-read text-[19px] leading-[1.75] ${p.articleColors ? 'artcol' : ''}`}
+      className={`mt-2.5 flex flex-col gap-4 rounded-[14px] border border-line bg-surface px-4 py-[18px] ${p.articleColors ? 'artcol' : ''}`}
+      style={p.look}
     >
       {text.paragraphs.map((_, para) => (
         <p key={para}>

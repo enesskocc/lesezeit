@@ -56,7 +56,12 @@ export function Vocab() {
 
   return (
     <>
-      <h1 className="mb-3 font-read text-[26px] font-semibold">Kelimeler</h1>
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h1 className="font-read text-[26px] font-semibold">Kelimeler</h1>
+        <Link to="/istatistik" className="text-sm font-semibold text-accent">
+          İstatistikler →
+        </Link>
+      </div>
 
       {cards.length === 0 ? (
         <p className="card text-muted">

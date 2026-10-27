@@ -1,10 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DATA_OWNER, DATA_REPO } from '../config';
 import { backupNow, restoreBackup } from '../lib/backup';
 import { clearKeys, DEFAULT_PREFS, getPrefs, saveKeys, setPrefs, type Settings } from '../lib/db';
 import { checkDataRepoAccess } from '../lib/github';
+import { READER_FONTS, READER_LEADINGS, READER_SIZES, readerLook } from '../lib/look';
 import { formatInterval } from '../lib/srs';
 
 /** A daily limit: typed freely, saved on blur; an empty or invalid field keeps the saved value. */
@@ -39,6 +40,49 @@ function VocabSettings() {
       <span className="label">Kelime çalışması</span>
       <LimitField label="Günde yeni kart" value={prefs.newPerDay} max={100} onSave={(n) => void setPrefs({ newPerDay: n })} />
       <LimitField label="Günde en fazla tekrar" value={prefs.maxReviews} max={999} onSave={(n) => void setPrefs({ maxReviews: n })} />
+    </section>
+  );
+}
+
+/** Spec "Display settings" for the reading text, with a live sample. */
+function DisplaySettings() {
+  const prefs = useLiveQuery(getPrefs, [], DEFAULT_PREFS);
+  const row = (label: string, children: ReactNode) => (
+    <div className="flex flex-col gap-1.5" role="group" aria-label={label}>
+      <span className="text-sm">{label}</span>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+  return (
+    <section className="card mt-4 flex flex-col gap-3" aria-label="Görünüm">
+      <span className="label">Görünüm · okuma metni</span>
+      {row(
+        'Yazı boyutu',
+        READER_SIZES.map((o) => (
+          <button key={o.px} className="chip" aria-pressed={prefs.readerSize === o.px} onClick={() => void setPrefs({ readerSize: o.px })}>
+            {o.label}
+          </button>
+        )),
+      )}
+      {row(
+        'Satır aralığı',
+        READER_LEADINGS.map((o) => (
+          <button key={o.value} className="chip" aria-pressed={prefs.readerLeading === o.value} onClick={() => void setPrefs({ readerLeading: o.value })}>
+            {o.label}
+          </button>
+        )),
+      )}
+      {row(
+        'Yazı tipi',
+        READER_FONTS.map((o) => (
+          <button key={o.value} className="chip" aria-pressed={prefs.readerFont === o.value} onClick={() => void setPrefs({ readerFont: o.value })}>
+            {o.label}
+          </button>
+        )),
+      )}
+      <p className="rounded-[10px] border border-line bg-bg px-3 py-2.5" lang="de" style={readerLook(prefs)} data-testid="look-sample">
+        Er fängt morgen mit der neuen Arbeit an, obwohl er noch müde ist.
+      </p>
     </section>
   );
 }
@@ -119,7 +163,6 @@ function isIosBrowserTab(): boolean {
 export function Setup({ existing }: { existing: Settings | undefined }) {
   const navigate = useNavigate();
   const [token, setToken] = useState('');
-  const [gemini, setGemini] = useState(existing?.geminiKey ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Token just saved, waiting for App's live settings to contain it before leaving setup.
@@ -142,7 +185,7 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
     setError(null);
     try {
       await checkDataRepoAccess(githubToken);
-      await saveKeys(githubToken, gemini.trim());
+      await saveKeys(githubToken);
       setSaved(githubToken); // the effect above navigates once App sees it
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -151,23 +194,22 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
   }
 
   async function onClear() {
-    if (!window.confirm('Bu cihazdaki anahtarlar silinsin mi?')) return;
+    if (!window.confirm('Bu cihazdaki GitHub token’ı silinsin mi?')) return;
     await clearKeys();
     setToken('');
-    setGemini('');
   }
 
   return (
     <>
       <h1 className="mb-1 font-read text-[26px] font-semibold">{existing ? 'Ayarlar' : 'Kurulum'}</h1>
       <p className="mb-4 text-muted">
-        Metinler ve ilerlemen özel <b className="text-ink">{DATA_OWNER}/{DATA_REPO}</b> reposunda durur. Anahtarlar sadece bu
+        Metinler ve ilerlemen özel <b className="text-ink">{DATA_OWNER}/{DATA_REPO}</b> reposunda durur. GitHub token’ı sadece bu
         cihazda saklanır.
       </p>
 
       {isIosBrowserTab() && (
         <p className="mb-4 rounded-[10px] bg-accent-soft px-3 py-2.5 text-sm">
-          iPhone’da önce <b>Paylaş → Ana Ekrana Ekle</b> yap, uygulamayı ana ekrandan aç ve anahtarları orada gir. Safari’de
+          iPhone’da önce <b>Paylaş → Ana Ekrana Ekle</b> yap, uygulamayı ana ekrandan aç ve token’ı orada gir. Safari’de
           girilenler ana ekran uygulamasına taşınmaz.
         </p>
       )}
@@ -190,23 +232,6 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
           <span className="text-[12.5px] text-muted">Fine-grained, sadece {DATA_REPO}: Contents ve Actions → Read and write.</span>
         </label>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="label"><span lang="en">Gemini API</span> anahtarı (isteğe bağlı)</span>
-          <input
-            className="field font-mono text-sm"
-            type="password"
-            name="gemini-key"
-            autoComplete="off"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="AIza…"
-            value={gemini}
-            onChange={(e) => setGemini(e.target.value)}
-          />
-          <span className="text-[12.5px] text-muted">Şu an hiçbir özellik kullanmıyor; boş bırakabilirsin.</span>
-        </label>
-
         {error && (
           <p className="text-sm text-bad" role="alert">
             {error}
@@ -220,11 +245,12 @@ export function Setup({ existing }: { existing: Settings | undefined }) {
 
       {existing && (
         <button className="btn mt-4 text-bad" onClick={() => void onClear()}>
-          Anahtarları bu cihazdan sil
+          Token’ı bu cihazdan sil
         </button>
       )}
 
       {existing && <VocabSettings />}
+      {existing && <DisplaySettings />}
       {existing && <BackupSettings token={existing.githubToken} />}
 
       <Link to="/lisanslar" className="mt-6 block text-sm text-muted underline">

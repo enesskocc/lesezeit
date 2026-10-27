@@ -60,6 +60,7 @@ button { cursor: pointer; }
   .btn { @apply rounded-[10px] border border-line bg-surface px-3 py-2.5 text-sm font-semibold disabled:opacity-50; }
   .btn-primary { @apply rounded-[10px] border border-accent bg-accent px-3 py-2.5 text-sm font-semibold text-surface disabled:opacity-50; }
   .field { @apply w-full rounded-[10px] border border-line bg-bg px-3 py-2.5 text-base text-ink; }
+  .chip { @apply rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] font-medium aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-bg; }
 }
 
 /* Reader word colouring (spec: new = dotted underline, learning = yellow, known/ignored = plain). */

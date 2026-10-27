@@ -245,7 +245,7 @@ test('cards saved before milestone 6 become new FSRS cards with dictionary data 
           const db = r.result;
           const tx = db.transaction(['settings', 'wordStatus', 'cards', 'textCache'], 'readwrite');
           const now = new Date().toISOString();
-          tx.objectStore('settings').put({ id: 'main', githubToken: token, geminiKey: '', updatedAt: now });
+          tx.objectStore('settings').put({ id: 'main', githubToken: token, geminiKey: 'AIza_TEST_ONLY', updatedAt: now });
           tx.objectStore('wordStatus').put({ key: 'w:haus', state: 'learning', updatedAt: now });
           tx.objectStore('cards').put({
             id: 'w:haus', kind: 'lemma', display: 'das Haus', pos: 'NOUN', meaning_tr: 'ev', createdAt: now, via: 'add',
@@ -272,4 +272,22 @@ test('cards saved before milestone 6 become new FSRS cards with dictionary data 
   expect(cards[0]!.contexts[0]!.forms).toEqual(['Haus']); // "Das" is not part of the card
   expect(typeof cards[0]!.due).toBe('number');
 
+  // Milestone 8 was cancelled: the database upgrade drops a Gemini key saved earlier, keeps the token.
+  const settings = await page.evaluate(
+    () =>
+      new Promise<Record<string, unknown>>((resolve, reject) => {
+        const r = indexedDB.open('lesezeit');
+        r.onsuccess = () => {
+          const q = r.result.transaction('settings').objectStore('settings').get('main');
+          q.onsuccess = () => {
+            r.result.close();
+            resolve(q.result as Record<string, unknown>);
+          };
+          q.onerror = () => reject(q.error);
+        };
+        r.onerror = () => reject(r.error);
+      }),
+  );
+  expect(settings).not.toHaveProperty('geminiKey');
+  expect(settings.githubToken).toBe(FAKE_TOKEN);
 });

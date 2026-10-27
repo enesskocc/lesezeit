@@ -7,6 +7,7 @@ import { ReaderText } from '../components/reader/ReaderText';
 import { SentenceSheet } from '../components/reader/SentenceSheet';
 import { groupOf, WordSheet } from '../components/reader/WordSheet';
 import { db, DEFAULT_PREFS, getPrefs, setPrefs, type WordState } from '../lib/db';
+import { readerLook } from '../lib/look';
 import { openText } from '../lib/offline';
 import { canSpeak, speakSentences, stopSpeaking } from '../lib/speech';
 import { readingMinutes } from '../lib/texts';
@@ -21,6 +22,9 @@ export function Reader({ token }: { token: string }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const states = useWordStates();
   const prefs = useLiveQuery(getPrefs, [], DEFAULT_PREFS);
+  const { readerSize, readerLeading, readerFont } = prefs;
+  // A stable object, so the memoized ReaderText does not re-render on every prefs change.
+  const look = useMemo(() => readerLook({ readerSize, readerLeading, readerFont }), [readerSize, readerLeading, readerFont]);
   const startedAt = useRef(new Date().toISOString());
   const [word, setWord] = useState<{ s: number; i: number } | null>(null);
   const [sentence, setSentence] = useState<number | null>(null);
@@ -112,7 +116,7 @@ export function Reader({ token }: { token: string }) {
       await db.readingLog.add({
         textId: text.id, date: text.date, startedAt: startedAt.current, finishedAt: now.toISOString(),
         seconds: Math.round((now.getTime() - new Date(startedAt.current).getTime()) / 1000),
-        newCards, correct: score.correct, answered: score.answered,
+        newCards, correct: score.correct, answered: score.answered, words: text.wordCount,
       });
       setFinished(true);
     } catch {
@@ -204,6 +208,7 @@ export function Reader({ token }: { token: string }) {
         text={text}
         states={states ?? EMPTY_STATES}
         articleColors={prefs.articleColors}
+        look={look}
         highlight={highlight}
         speaking={speaking}
         proof={proof}

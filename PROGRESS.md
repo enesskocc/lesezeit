@@ -73,8 +73,15 @@ _Last updated: 2026-10-26_
 
 - **Milestone 9 — Generated and imported texts: cancelled 2026-10-27 (Enes).** No requested AI texts, no import (paste/URL), no daily context-review text. The schema keeps `kind` (news / generated / imported / review) but only news texts are produced.
 
+- **Milestone 10 — Polish (built 2026-10-27, waiting for iPhone OK)**
+  - Decisions (Enes, 2026-10-27): **no weekly progress row** on the home screen; display settings **only in Ayarlar**; **dark mode follows the system** (no theme setting); the unused **Gemini key field is removed** (Dexie v4 deletes a key saved earlier). "Translation hidden until tapped" needs no setting: the reader already shows translations only in the sentence sheet.
+  - **İstatistikler** (`#/istatistik`, "İstatistikler →" on Kelimeler): streak, retention, reviews today, cards by state (yeni / öğreniliyor / genç / olgun), reviews per day (30 days) and words read per week (8 weeks) as single-series column charts; tapping a column shows its value, "Tablo" lists all values. Pure functions in `src/lib/stats.ts`: learning days start at 04:00 (like the limits); free practice is not a review but keeps the streak; retention = Hard/Good/Easy share of reviews of graduated cards (state Review before the answer) in 30 days. Finished readings now store `words`; older rows take the word count from the cached text.
+  - **Ayarlar → Görünüm**: reading text size (16 / 19 / 22 / 25 px), line height (1.5 / 1.75 / 2.05), Serif (Literata) / Sans (Figtree), with a live sample (`src/lib/look.ts`). Shared `.chip` style in `index.css`.
+  - Tests: `src/lib/stats.test.ts` (day boundary 04:00, DST change on 25 Oct, practice, retention, streak, weeks), `e2e/polish.spec.ts` (stats screen with synthetic history, display settings applied to the reader and kept after reload, no Gemini field), `e2e/vocab.spec.ts` migration test now also checks that an old Gemini key is deleted.
+  - Note: on a heavily loaded PC the full E2E suite can fail with "browser has been closed" / slow clicks; `npx playwright test --workers 1` passes (37/37). CI retries once.
+
 ## Next
-1. Milestone 10 — polish (stats, weekly progress, settings, dark mode). List files + decisions first.
+1. iPhone test of milestone 10. After that all milestones are done.
 2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 

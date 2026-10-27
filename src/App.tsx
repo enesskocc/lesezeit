@@ -12,6 +12,7 @@ import { Licenses } from './screens/Licenses';
 import { Reader } from './screens/Reader';
 import { Session } from './screens/Session';
 import { Setup } from './screens/Setup';
+import { Stats } from './screens/Stats';
 import { Vocab } from './screens/Vocab';
 
 // iOS sometimes loses the IndexedDB connection after a long suspend and the open never resolves.
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/kelimeler" element={<Vocab />} />
           <Route path="/kelimeler/oturum" element={<Session />} />
           <Route path="/kart/:id" element={<CardDetail />} />
+          <Route path="/istatistik" element={<Stats />} />
           <Route path="/sozluk" element={<Dictionary />} />
           <Route path="/lisanslar" element={<Licenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />

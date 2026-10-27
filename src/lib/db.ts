@@ -5,12 +5,11 @@ import { tokenSpans } from './exercises';
 import { lemmaOfDisplay, newFsrs, type FsrsCard } from './srs';
 
 /**
- * Keys. They never leave the device except as request headers to their own API (GitHub / Gemini).
+ * Keys. The token never leaves the device except as a request header to the GitHub API.
  */
 export interface Settings {
   id: 'main';
   githubToken: string;
-  geminiKey: string; // optional until milestone 8; '' when not set
   updatedAt: string; // ISO timestamp
 }
 
@@ -24,11 +23,15 @@ export interface Prefs {
   newPerDay: number; // spec: new cards per day, default 15
   maxReviews: number; // spec: max reviews per day, default 150
   sessionMinutes: number; // last chosen session length; 0 = "all due"
+  readerSize: number; // reading text font size in px (spec "Display settings")
+  readerLeading: number; // reading text line height
+  readerFont: 'serif' | 'sans';
   backupAt?: string; // last successful backup to lesezeit-data (ISO)
   backupError?: string; // last failed backup, Turkish message (cleared on success)
 }
 export const DEFAULT_PREFS: Prefs = {
   id: 'main', guessMode: true, articleColors: false, ttsRate: 0.9, newPerDay: 15, maxReviews: 150, sessionMinutes: 10,
+  readerSize: 19, readerLeading: 1.75, readerFont: 'serif',
 };
 
 /** Known-ness per lemma (spec: per lemma, not per form). No row = "new". */
@@ -89,6 +92,7 @@ export interface ReadingLogRow {
   newCards: number;
   correct: number;
   answered: number;
+  words?: number; // text length (milestone 10); older rows: taken from the cached text
 }
 
 /** Downloaded texts for offline reading (spec: textCache). */
@@ -161,13 +165,22 @@ class LesezeitDB extends Dexie {
           }
         });
       });
+    // Milestone 8 was cancelled (Enes, 2026-10-27): a Gemini key saved earlier is removed.
+    this.version(4)
+      .stores({})
+      .upgrade((tx) =>
+        tx
+          .table('settings')
+          .toCollection()
+          .modify((s: Settings & { geminiKey?: string }) => void delete s.geminiKey),
+      );
   }
 }
 
 export const db = new LesezeitDB();
 
-export async function saveKeys(githubToken: string, geminiKey: string): Promise<void> {
-  await db.settings.put({ id: 'main', githubToken, geminiKey, updatedAt: new Date().toISOString() });
+export async function saveKeys(githubToken: string): Promise<void> {
+  await db.settings.put({ id: 'main', githubToken, updatedAt: new Date().toISOString() });
   // Ask the browser not to evict IndexedDB under storage pressure. Best effort: Safari may ignore it.
   await navigator.storage?.persist?.().catch(() => false);
 }

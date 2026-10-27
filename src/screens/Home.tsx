@@ -18,8 +18,6 @@ const dayLabel = new Intl.DateTimeFormat('tr-TR', { weekday: 'long', day: 'numer
 // en-CA formats as YYYY-MM-DD.
 const berlinDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' });
 
-const chip =
-  'rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] font-medium aria-pressed:border-ink aria-pressed:bg-ink aria-pressed:text-bg';
 
 function TextCard({ t, cached, states }: { t: IndexEntry; cached?: TextFile; states?: Map<string, WordState> }) {
   const level = t.level ?? t.levelHeuristic;
@@ -97,18 +95,18 @@ export function Home({ token }: { token: string }) {
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Seviye">
         {(['all', ...LEVELS] as const).map((l) => (
-          <button key={l} aria-pressed={level === l} onClick={() => setLevel(l)} className={chip}>
+          <button key={l} aria-pressed={level === l} onClick={() => setLevel(l)} className="chip">
             {l === 'all' ? 'Tümü' : l}
           </button>
         ))}
       </div>
       {topics.length > 1 && (
         <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Konu">
-          <button aria-pressed={topic === 'all'} onClick={() => setTopic('all')} className={chip}>
+          <button aria-pressed={topic === 'all'} onClick={() => setTopic('all')} className="chip">
             Tüm konular
           </button>
           {topics.map((t) => (
-            <button key={t} aria-pressed={topic === t} onClick={() => setTopic(t)} className={chip}>
+            <button key={t} aria-pressed={topic === t} onClick={() => setTopic(t)} className="chip">
               {TOPICS[t]}
             </button>
           ))}
