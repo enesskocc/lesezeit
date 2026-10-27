@@ -207,5 +207,5 @@ Build in this order; each milestone ends with something usable on the phone and 
 6. **Vocabulary core.** Cards with context sentences, FSRS, flashcards, matching (all modes, with audio), artikel & plural, cloze, word family. *Done when:* a 10-minute mixed session runs and due dates update correctly.
 7. **Backup and coverage.** Progress backup, restore, coverage-based picks (Enes 2026-10-26: band 95–99 %; the context-review text moved to milestone 9). *Done when:* a word marked known on the phone lowers its weight in the next day's picks.
 8. ~~**Writing and live AI.** Own sentence, summary feedback, "Neden böyle?" via Gemini.~~ **Cancelled (Enes, 2026-10-27):** no own sentence, no summary feedback, no "Neden böyle?"; Gemini is not used. Missing-word meanings by AI → later (M10).
-9. **Generated and imported texts.** `inbox/` requests, generator + validator, context-review text from due cards (moved from milestone 7). *Done when:* a requested B2 text with 5 target words appears within 10 minutes.
+9. ~~**Generated and imported texts.** `inbox/` requests, generator + validator, context-review text from due cards (moved from milestone 7).~~ **Cancelled (Enes, 2026-10-27):** no requested texts, no import, no context-review text; the app reads only the daily news text.
 10. **Polish.** Stats, weekly progress, settings, dark mode.

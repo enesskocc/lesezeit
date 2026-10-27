@@ -71,8 +71,10 @@ _Last updated: 2026-10-26_
 
 - **Milestone 8 — Writing and live AI: cancelled 2026-10-27 (Enes).** No own sentence, no summary feedback, no "Neden böyle?" — so no Gemini (it was only needed for instant answers on the phone; a Claude-workflow version with 1–3 min answers was offered and declined too). The disabled "Neden böyle?" button was removed from the sentence sheet. AI meanings for words the dictionary lacks → later (M10).
 
+- **Milestone 9 — Generated and imported texts: cancelled 2026-10-27 (Enes).** No requested AI texts, no import (paste/URL), no daily context-review text. The schema keeps `kind` (news / generated / imported / review) but only news texts are produced.
+
 ## Next
-1. Milestone 9 — generated and imported texts (+ context-review text from M7). List files + decisions first.
+1. Milestone 10 — polish (stats, weekly progress, settings, dark mode). List files + decisions first.
 2. Dictionary: the last 148 entries without Turkish (ids rewritten by Claude, fixed 2026-10-26) come in the next nightly round → copy `dict/tr-claude.json`, rebuild, push.
 3. Recalibrate heuristic level cuts against Opus levels once ~20 texts are leveled.
 
